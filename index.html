@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Grind</title>
-<!-- v10 -->
+<!-- v11 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="The Grind">
@@ -579,19 +579,6 @@
     margin-top: 8px;
   }
 
-  /* --- Install Banner --- */
-  .install-banner {
-    background: var(--card);
-    border: 1px solid var(--accent);
-    border-radius: 12px;
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    display: none;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--dim);
-  }
-  .install-banner strong { color: var(--text); }
 </style>
 </head>
 <body>
@@ -600,7 +587,7 @@
   <h1>The Grind</h1>
   <div class="date" id="headerDate"></div>
   <button class="settings-btn" onclick="openSettings()" title="Settings">&#9881;</button>
-  <button class="refresh-btn" onclick="location.reload(true)" title="Refresh">&#8635;</button>
+  <button class="refresh-btn" onclick="hardRefresh()" title="Refresh">&#8635;</button>
 </div>
 
 <!-- Settings Overlay -->
@@ -625,11 +612,6 @@
 </div>
 
 <div class="status-banner" id="statusBanner"></div>
-
-<!-- Install Instructions (shows on mobile if not installed) -->
-<div class="install-banner" id="installBanner">
-  <strong>Add to Home Screen:</strong> Tap the share button, then "Add to Home Screen" to use The Grind like an app.
-</div>
 
 <!-- Yesterday's Feedback -->
 <div class="feedback-card" id="feedbackCard">
@@ -780,11 +762,6 @@ function updateTargetLabels() {
 document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', {
   weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
 });
-
-// Show install banner on mobile Safari if not in standalone mode
-if (navigator.standalone === false || (navigator.userAgent.match(/iPhone|iPad/) && !window.navigator.standalone)) {
-  document.getElementById('installBanner').style.display = 'block';
-}
 
 // ---- API Helpers ----
 async function apiGet(action) {
@@ -1164,6 +1141,14 @@ function renderWeightStats(history) {
     <div class="weight-stat"><div class="stat-label">Current</div><div class="stat-value">${current}</div></div>
     <div class="weight-stat"><div class="stat-label">Total</div><div class="stat-value ${cc}">${change > 0 ? '+' : ''}${change.toFixed(1)}</div></div>
     <div class="weight-stat"><div class="stat-label">7-Day</div><div class="stat-value ${wc2}">${weekChange}</div></div>`;
+}
+
+// ---- Hard Refresh (cache bust) ----
+function hardRefresh() {
+  if ('caches' in window) {
+    caches.keys().then(names => names.forEach(name => caches.delete(name)));
+  }
+  window.location.href = window.location.pathname + '?t=' + Date.now();
 }
 
 // ---- Day Navigation ----
