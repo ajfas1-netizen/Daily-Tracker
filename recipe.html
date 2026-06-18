@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Recipe Builder</title>
+<!-- v1 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b1120">
+<style>
+  :root {
+    --bg: #0b1120;
+    --card: #111a2e;
+    --card2: #162036;
+    --border: #1e2d4a;
+    --text: #e4e8f1;
+    --dim: #6b7a99;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59,130,246,0.25);
+    --green: #22c55e;
+    --green-glow: rgba(34,197,94,0.25);
+    --orange: #f59e0b;
+    --red: #ef4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 12px 16px 100px;
+    min-height: 100vh;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 8px 0;
+  }
+  .back-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .header-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .mode-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .mode-tab {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--dim);
+    padding: 10px 4px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    line-height: 1.3;
+    transition: all 0.15s;
+  }
+  .mode-tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .tab-icon { font-size: 16px; display: block; margin-bottom: 3px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--dim);
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+  input[type=text], input[type=number], input[type=url], textarea {
+    width: 100%;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 15px;
+    padding: 11px 13px;
+    margin-bottom: 12px;
+    outline: none;
+    -webkit-appearance: none;
+    resize: none;
+    font-family: inherit;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { min-height: 110px; }
+
+  .macro-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .macro-field label { font-size: 11px; }
+  .macro-field input { margin-bottom: 0; font-size: 14px; }
+
+  .portions-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .portions-label { font-size: 13px; color: var(--dim); font-weight: 500; flex: 1; }
+  .stepper {
+    display: flex;
+    align-items: center;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .stepper-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 22px;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .stepper-btn:active { background: var(--accent-glow); }
+  .stepper-val { font-size: 18px; font-weight: 700; min-width: 38px; text-align: center; }
+
+  .btn-analyze {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 15px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-analyze:active { opacity: 0.8; }
+  .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .serving-note {
+    font-size: 12px;
+    color: var(--dim);
+    margin-top: -6px;
+    margin-bottom: 14px;
+    line-height: 1.4;
+  }
+
+  .loading-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 18px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 14px; color: var(--dim); }
+
+  .confirm-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .confirm-name { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .confidence-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  .confidence-high  { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.4); }
+  .confidence-medium { background: rgba(245,158,11,0.15); color: var(--orange); border: 1px solid rgba(245,158,11,0.4); }
+  .confidence-low   { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.4); }
+  .confidence-manual { background: rgba(59,130,246,0.15); color: var(--accent); border: 1px solid rgba(59,130,246,0.4); }
+
+  .notes-text {
+    font-size: 12px;
+    color: var(--dim);
+    margin-bottom: 16px;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  .macro-preview {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .macro-preview::-webkit-scrollbar { display: none; }
+  .macro-chip {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    text-align: center;
+    flex-shrink: 0;
+    min-width: 54px;
+  }
+  .macro-chip .val { font-size: 16px; font-weight: 700; display: block; }
+  .macro-chip .lbl { font-size: 10px; color: var(--dim); display: block; margin-top: 2px; }
+
+  .action-btns { display: flex; flex-direction: column; gap: 10px; }
+
+  .btn-primary {
+    background: var(--green);
+    border: none;
+    color: #0b1120;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:active { opacity: 0.8; }
+
+  .btn-secondary {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-secondary:active { opacity: 0.8; }
+
+  .btn-log-only {
+    background: var(--accent);
+    border: none;
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-log-only:active { opacity: 0.8; }
+
+  .success-card {
+    background: var(--card);
+    border: 1px solid var(--green);
+    border-radius: 16px;
+    padding: 32px 18px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .success-icon { font-size: 40px; margin-bottom: 12px; }
+  .success-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .success-sub { font-size: 14px; color: var(--dim); margin-bottom: 24px; line-height: 1.5; }
+  .btn-back {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 13px 28px;
+    border-radius: 12px;
+    text-decoration: none;
+    margin-bottom: 12px;
+  }
+
+  .status-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.25s;
+    pointer-events: none;
+    white-space: nowrap;
+    max-width: calc(100% - 32px);
+  }
+  .status-toast.show { opacity: 1; }
+  .status-toast.success { border-color: var(--green); color: var(--green); }
+  .status-toast.error { border-color: var(--red); color: var(--red); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="index.html" class="back-btn">&#8592; Grind</a>
+  <div class="header-title">Recipe Builder</div>
+</div>
+
+<!-- Mode Tabs -->
+<div class="mode-tabs">
+  <button class="mode-tab active" onclick="setMode('cook')" id="tab-cook">
+    <span class="tab-icon">🍳</span>Cook It
+  </button>
+  <button class="mode-tab" onclick="setMode('paste')" id="tab-paste">
+    <span class="tab-icon">📋</span>Paste It
+  </button>
+  <button class="mode-tab" onclick="setMode('url')" id="tab-url">
+    <span class="tab-icon">🔗</span>URL
+  </button>
+  <button class="mode-tab" onclick="setMode('ordered')" id="tab-ordered">
+    <span class="tab-icon">🥡</span>Ordered Out
+  </button>
+</div>
+
+<!-- Cook It Mode (manual macros) -->
+<div id="panel-cook">
+  <div class="card">
+    <div class="card-title">Meal Details</div>
+    <label>Meal Name</label>
+    <input type="text" id="cook-name" placeholder="e.g. Grilled Chicken Meal Prep" autocomplete="off">
+    <label>Description (optional — helps with AI suggestions later)</label>
+    <textarea id="cook-desc" placeholder="e.g. 4 chicken breasts 5oz each, asparagus, split 4 containers"></textarea>
+    <div class="portions-row">
+      <span class="portions-label">Portions / Containers</span>
+      <div class="stepper">
+        <button class="stepper-btn" onclick="changePortions(-1)">&#8722;</button>
+        <span class="stepper-val" id="portions-val-cook">4</span>
+        <button class="stepper-btn" onclick="changePortions(1)">&#43;</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Total Batch Macros (for all portions)</div>
+    <div class="macro-grid">
+      <div class="macro-field">
+        <label>Protein (g)</label>
+        <input type="number" id="cook-protein" inputmode="decimal" placeholder="0">
+      </div>
+      <div class="macro-field">
+        <label>Calories</label>
+        <input type="number" id="cook-calories" inputmode="decimal" placeholder="0">
+      </div>
+      <div class="macro-field">
+        <label>Carbs (g)</label>
+        <input type="number" id="cook-carbs" inputmode="decimal" placeholder="0">
+      </div>
+      <div class="macro-field">
+        <label>Fat (g)</label>
+        <input type="number" id="cook-fat" inputmode="decimal" placeholder="0">
+      </div>
+      <div class="macro-field">
+        <label>Sugar (g)</label>
+        <input type="number" id="cook-sugar" inputmode="decimal" placeholder="0">
+      </div>
+      <div class="macro-field">
+        <label>Sodium (mg)</label>
+        <input type="number" id="cook-sodium" inputmode="decimal" placeholder="0">
+      </div>
+    </div>
+    <p class="serving-note">Per-serving macros will be calculated by dividing by the number of portions above.</p>
+    <button class="btn-analyze" onclick="analyzeCook()">Calculate &amp; Review</button>
+  </div>
+</div>
+
+<!-- Paste Recipe Mode -->
+<div id="panel-paste" class="hidden">
+  <div class="card">
+    <div class="card-title">Paste Recipe</div>
+    <textarea id="paste-text" placeholder="Paste the full recipe here — ingredients, quantities, instructions. Claude will estimate macros per serving."></textarea>
+    <label>Meal Name</label>
+    <input type="text" id="paste-name" placeholder="Name for your food library" autocomplete="off">
+    <div class="portions-row">
+      <span class="portions-label">Number of Servings</span>
+      <div class="stepper">
+        <button class="stepper-btn" onclick="changePortions(-1)">&#8722;</button>
+        <span class="stepper-val" id="portions-val-paste">4</span>
+        <button class="stepper-btn" onclick="changePortions(1)">&#43;</button>
+      </div>
+    </div>
+    <button class="btn-analyze" onclick="analyzePaste()">Analyze with AI</button>
+  </div>
+</div>
+
+<!-- URL Mode -->
+<div id="panel-url" class="hidden">
+  <div class="card">
+    <div class="card-title">Recipe URL</div>
+    <label>Paste a recipe page URL</label>
+    <input type="url" id="url-input" placeholder="https://..." inputmode="url" autocomplete="off">
+    <label>Meal Name (optional — AI will use recipe title if blank)</label>
+    <input type="text" id="url-name" placeholder="Leave blank to infer" autocomplete="off">
+    <div class="portions-row">
+      <span class="portions-label">Number of Servings</span>
+      <div class="stepper">
+        <button class="stepper-btn" onclick="changePortions(-1)">&#8722;</button>
+        <span class="stepper-val" id="portions-val-url">4</span>
+        <button class="stepper-btn" onclick="changePortions(1)">&#43;</button>
+      </div>
+    </div>
+    <button class="btn-analyze" onclick="analyzeUrl()">Fetch &amp; Analyze</button>
+  </div>
+</div>
+
+<!-- Ordered Out Mode -->
+<div id="panel-ordered" class="hidden">
+  <div class="card">
+    <div class="card-title">Describe What You Ordered</div>
+    <textarea id="ordered-desc" placeholder="e.g. Chipotle chicken bowl — double chicken, brown rice, black beans, fajita veggies, mild salsa, guac"></textarea>
+    <label>Meal Name (for your log)</label>
+    <input type="text" id="ordered-name" placeholder="e.g. Chipotle Chicken Bowl" autocomplete="off">
+    <button class="btn-analyze" onclick="analyzeOrdered()">Estimate Macros</button>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="loading-card" class="loading-card hidden">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Analyzing with AI...</div>
+</div>
+
+<!-- Confirmation Card -->
+<div id="confirm-card" class="confirm-card hidden">
+  <div class="confirm-name" id="confirm-name"></div>
+  <span class="confidence-badge confidence-high" id="confidence-badge">High Confidence</span>
+  <p class="notes-text" id="confirm-notes"></p>
+  <div class="card-title" style="margin-bottom:10px">Macros per serving — edit if needed</div>
+  <div class="macro-grid">
+    <div class="macro-field">
+      <label>Protein (g)</label>
+      <input type="number" id="conf-protein" inputmode="decimal">
+    </div>
+    <div class="macro-field">
+      <label>Calories</label>
+      <input type="number" id="conf-calories" inputmode="decimal">
+    </div>
+    <div class="macro-field">
+      <label>Carbs (g)</label>
+      <input type="number" id="conf-carbs" inputmode="decimal">
+    </div>
+    <div class="macro-field">
+      <label>Fat (g)</label>
+      <input type="number" id="conf-fat" inputmode="decimal">
+    </div>
+    <div class="macro-field">
+      <label>Sugar (g)</label>
+      <input type="number" id="conf-sugar" inputmode="decimal">
+    </div>
+    <div class="macro-field">
+      <label>Sodium (mg)</label>
+      <input type="number" id="conf-sodium" inputmode="decimal">
+    </div>
+  </div>
+  <div class="macro-preview" id="macro-preview"></div>
+  <div class="action-btns" id="action-btns"></div>
+</div>
+
+<!-- Success Card -->
+<div id="success-card" class="success-card hidden">
+  <div class="success-icon">&#10003;</div>
+  <div class="success-title" id="success-title">Done!</div>
+  <div class="success-sub" id="success-sub"></div>
+  <a href="index.html" class="btn-back">Back to The Grind</a>
+  <br>
+  <button class="btn-secondary" onclick="resetBuilder()" style="width:100%;margin-top:10px">Build Another</button>
+</div>
+
+<div class="status-toast" id="statusToast"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
+
+let currentMode = 'cook';
+let portions = 4;
+let pendingResult = null;
+
+function setMode(mode) {
+  currentMode = mode;
+  ['cook','paste','url','ordered'].forEach(m => {
+    document.getElementById('panel-' + m).classList.toggle('hidden', m !== mode);
+    document.getElementById('tab-' + m).classList.toggle('active', m === mode);
+  });
+  hideResults();
+  portions = (mode === 'ordered') ? 1 : 4;
+  syncPortions();
+}
+
+function syncPortions() {
+  ['cook','paste','url'].forEach(suffix => {
+    const el = document.getElementById('portions-val-' + suffix);
+    if (el) el.textContent = portions;
+  });
+}
+
+function changePortions(delta) {
+  portions = Math.max(1, Math.min(20, portions + delta));
+  syncPortions();
+}
+
+function hideResults() {
+  document.getElementById('loading-card').classList.add('hidden');
+  document.getElementById('confirm-card').classList.add('hidden');
+  document.getElementById('success-card').classList.add('hidden');
+}
+
+// ---- Cook It ----
+function analyzeCook() {
+  const name = document.getElementById('cook-name').value.trim();
+  if (!name) { showToast('Enter a meal name', 'error'); return; }
+
+  const totalProtein  = parseFloat(document.getElementById('cook-protein').value)  || 0;
+  const totalCalories = parseFloat(document.getElementById('cook-calories').value) || 0;
+  const totalCarbs    = parseFloat(document.getElementById('cook-carbs').value)    || 0;
+  const totalFat      = parseFloat(document.getElementById('cook-fat').value)      || 0;
+  const totalSugar    = parseFloat(document.getElementById('cook-sugar').value)    || 0;
+  const totalSodium   = parseFloat(document.getElementById('cook-sodium').value)   || 0;
+
+  if (!totalCalories && !totalProtein) {
+    showToast('Enter at least protein or calories', 'error');
+    return;
+  }
+
+  const p = portions;
+  showConfirmation({
+    name,
+    servingLabel: p > 1 ? '1 of ' + p + ' containers' : '1 serving',
+    protein:  Math.round(totalProtein  / p),
+    calories: Math.round(totalCalories / p),
+    carbs:    Math.round(totalCarbs    / p),
+    fat:      Math.round(totalFat      / p),
+    sugar:    Math.round(totalSugar    / p),
+    sodium:   Math.round(totalSodium   / p),
+    confidence: 'manual',
+    notes: 'Macros you entered, divided across ' + p + ' portion' + (p !== 1 ? 's' : '') + '.',
+    mode: 'cook'
+  });
+}
+
+// ---- Paste ----
+async function analyzePaste() {
+  const text = document.getElementById('paste-text').value.trim();
+  if (!text) { showToast('Paste a recipe first', 'error'); return; }
+  const name = document.getElementById('paste-name').value.trim() || '';
+  await callBuildRecipe({ mode: 'paste', text, name, portions });
+}
+
+// ---- URL ----
+async function analyzeUrl() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url || !url.startsWith('http')) { showToast('Enter a valid URL starting with http', 'error'); return; }
+  const name = document.getElementById('url-name').value.trim() || '';
+  await callBuildRecipe({ mode: 'url', url, name, portions });
+}
+
+// ---- Ordered Out ----
+async function analyzeOrdered() {
+  const desc = document.getElementById('ordered-desc').value.trim();
+  if (!desc) { showToast('Describe what you ordered', 'error'); return; }
+  const name = document.getElementById('ordered-name').value.trim() || desc.substring(0, 50);
+  await callBuildRecipe({ mode: 'ordered', text: desc, name, portions: 1 });
+}
+
+// ---- Call backend ----
+async function callBuildRecipe(payload) {
+  document.getElementById('loading-card').classList.remove('hidden');
+  document.getElementById('loading-text').textContent =
+    payload.mode === 'url' ? 'Fetching & analyzing recipe...' : 'Analyzing with AI...';
+  document.getElementById('confirm-card').classList.add('hidden');
+  document.getElementById('success-card').classList.add('hidden');
+
+  try {
+    const resp = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'buildRecipe', ...payload })
+    });
+    const data = await resp.json();
+    document.getElementById('loading-card').classList.add('hidden');
+    if (data.error) { showToast(data.error, 'error'); return; }
+    showConfirmation({ ...data, mode: payload.mode });
+  } catch (err) {
+    document.getElementById('loading-card').classList.add('hidden');
+    showToast('Network error — check connection and try again', 'error');
+  }
+}
+
+// ---- Confirmation ----
+function showConfirmation(result) {
+  pendingResult = result;
+
+  document.getElementById('confirm-name').textContent = result.name;
+  document.getElementById('conf-protein').value  = result.protein;
+  document.getElementById('conf-calories').value = result.calories;
+  document.getElementById('conf-carbs').value    = result.carbs;
+  document.getElementById('conf-fat').value      = result.fat;
+  document.getElementById('conf-sugar').value    = result.sugar;
+  document.getElementById('conf-sodium').value   = result.sodium;
+  document.getElementById('confirm-notes').textContent = result.notes || '';
+
+  const badge = document.getElementById('confidence-badge');
+  const c = result.confidence;
+  if (c === 'manual') {
+    badge.textContent = 'Manual Entry';
+    badge.className = 'confidence-badge confidence-manual';
+  } else if (c === 'high') {
+    badge.textContent = 'High Confidence';
+    badge.className = 'confidence-badge confidence-high';
+  } else if (c === 'medium') {
+    badge.textContent = 'Medium Confidence — Review';
+    badge.className = 'confidence-badge confidence-medium';
+  } else {
+    badge.textContent = 'Low Confidence — Please Edit';
+    badge.className = 'confidence-badge confidence-low';
+  }
+
+  renderMacroPreview();
+
+  const btns = document.getElementById('action-btns');
+  if (result.mode === 'ordered') {
+    btns.innerHTML =
+      '<button class="btn-log-only" onclick="doLog()">Log Today</button>' +
+      '<button class="btn-secondary" onclick="doSaveAndLog()">Save to Library + Log Today</button>' +
+      '<button class="btn-secondary" onclick="doSave()">Save to Library Only</button>';
+  } else {
+    btns.innerHTML =
+      '<button class="btn-primary" onclick="doSaveAndLog()">Save to Library + Log Today</button>' +
+      '<button class="btn-secondary" onclick="doSave()">Save to Library Only</button>' +
+      '<button class="btn-log-only" onclick="doLog()">Log Today Only</button>';
+  }
+
+  document.getElementById('confirm-card').classList.remove('hidden');
+  setTimeout(() => document.getElementById('confirm-card').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+}
+
+function renderMacroPreview() {
+  const m = getMacros();
+  document.getElementById('macro-preview').innerHTML = [
+    ['Protein', m.protein + 'g'],
+    ['Cals',    m.calories],
+    ['Carbs',   m.carbs + 'g'],
+    ['Fat',     m.fat + 'g'],
+    ['Sugar',   m.sugar + 'g'],
+  ].map(([lbl, val]) =>
+    '<div class="macro-chip"><span class="val">' + val + '</span><span class="lbl">' + lbl + '</span></div>'
+  ).join('');
+}
+
+function getMacros() {
+  return {
+    name:     document.getElementById('confirm-name').textContent,
+    protein:  parseFloat(document.getElementById('conf-protein').value)  || 0,
+    calories: parseFloat(document.getElementById('conf-calories').value) || 0,
+    carbs:    parseFloat(document.getElementById('conf-carbs').value)    || 0,
+    fat:      parseFloat(document.getElementById('conf-fat').value)      || 0,
+    sugar:    parseFloat(document.getElementById('conf-sugar').value)    || 0,
+    sodium:   parseFloat(document.getElementById('conf-sodium').value)   || 0,
+  };
+}
+
+['conf-protein','conf-calories','conf-carbs','conf-fat','conf-sugar','conf-sodium'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderMacroPreview);
+});
+
+// ---- Actions ----
+async function doSave() {
+  await saveToLibrary(getMacros(), pendingResult?.servingLabel || '1 serving', true);
+}
+async function doLog() {
+  await logToday(getMacros(), true);
+}
+async function doSaveAndLog() {
+  const macros = getMacros();
+  const label = pendingResult?.servingLabel || '1 serving';
+  try {
+    await saveToLibrary(macros, label, false);
+    await logToday(macros, false);
+    showSuccess('Saved & Logged', macros.name + ' is in your library and logged for today.');
+  } catch {
+    showToast('Something went wrong', 'error');
+  }
+}
+
+async function saveToLibrary(macros, servingLabel, showCard) {
+  const resp = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'addFood',
+      name: macros.name,
+      servingLabel,
+      protein: macros.protein,
+      calories: macros.calories,
+      carbs: macros.carbs,
+      fat: macros.fat,
+      sugar: macros.sugar,
+      sodium: macros.sodium,
+      isBatch: false
+    })
+  });
+  const data = await resp.json();
+  if (data.error) { if (showCard) showToast(data.error, 'error'); throw new Error(data.error); }
+  if (showCard) showSuccess('Saved to Library', macros.name + ' added to your food library.');
+}
+
+async function logToday(macros, showCard) {
+  const resp = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'logFoodDirect',
+      name: macros.name,
+      protein: macros.protein,
+      calories: macros.calories,
+      carbs: macros.carbs,
+      fat: macros.fat,
+      sugar: macros.sugar,
+      sodium: macros.sodium
+    })
+  });
+  const data = await resp.json();
+  if (data.error) { if (showCard) showToast(data.error, 'error'); throw new Error(data.error); }
+  if (showCard) showSuccess('Logged Today', macros.name + ' logged for today.');
+}
+
+function showSuccess(title, sub) {
+  document.getElementById('confirm-card').classList.add('hidden');
+  document.getElementById('success-title').textContent = title;
+  document.getElementById('success-sub').textContent = sub;
+  document.getElementById('success-card').classList.remove('hidden');
+  setTimeout(() => document.getElementById('success-card').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+}
+
+function resetBuilder() {
+  hideResults();
+  ['cook-name','cook-desc','paste-text','paste-name','url-input','url-name','ordered-desc','ordered-name',
+   'cook-protein','cook-calories','cook-carbs','cook-fat','cook-sugar','cook-sodium'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  portions = (currentMode === 'ordered') ? 1 : 4;
+  syncPortions();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+let toastTimer;
+function showToast(msg, type) {
+  const el = document.getElementById('statusToast');
+  el.textContent = msg;
+  el.className = 'status-toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>

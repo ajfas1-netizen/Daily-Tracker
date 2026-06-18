@@ -70,6 +70,12 @@ function doPost(e) {
     case 'logBodyweight':
       result = logBodyweight(body);
       break;
+    case 'buildRecipe':
+      result = buildRecipe(body);
+      break;
+    case 'logFoodDirect':
+      result = logFoodDirect(body);
+      break;
     default:
       result = { error: 'Unknown action: ' + action };
   }
@@ -523,6 +529,133 @@ function syncFoods() {
 }
 
 function seedFoods() { return syncFoods(); }
+
+// ---- buildRecipe ----
+// Handles paste, url, and ordered modes. Cook It mode is client-side only.
+function buildRecipe(body) {
+  const mode = body.mode;
+  const portions = parseInt(body.portions) || 1;
+  let text = body.text || '';
+
+  if (mode === 'url') {
+    const url = body.url;
+    if (!url) return { error: 'URL required' };
+    try {
+      const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+      let html = response.getContentText();
+      // Strip scripts, styles, and tags; keep readable text
+      text = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 8000);
+      if (body.name) text = 'Recipe name: ' + body.name + '\n\n' + text;
+    } catch (err) {
+      return { error: 'Could not fetch URL: ' + err.message };
+    }
+  }
+
+  if (!text) return { error: 'No text to analyze' };
+
+  const result = callClaude(text, mode, portions);
+  if (result.error) return result;
+
+  if (!result.servingLabel) {
+    result.servingLabel = (mode !== 'ordered' && portions > 1)
+      ? '1 of ' + portions + ' servings'
+      : '1 serving';
+  }
+
+  if (body.name && body.name.trim() && (!result.name || result.name.length < 3)) {
+    result.name = body.name.trim();
+  }
+
+  return result;
+}
+
+// ---- callClaude ----
+function callClaude(text, mode, portions) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  if (!apiKey) return { error: 'CLAUDE_API_KEY not set in Script Properties. See setup instructions.' };
+
+  let prompt;
+  if (mode === 'ordered') {
+    prompt = 'I ordered this meal at a restaurant:\n\n"' + text + '"\n\n' +
+      'Estimate realistic nutrition macros for this meal based on typical restaurant portions.\n\n' +
+      'Return ONLY a valid JSON object with exactly these fields (numbers only, no units in values):\n' +
+      '{"name":"meal name","protein":0,"calories":0,"carbs":0,"fat":0,"sugar":0,"sodium":0,' +
+      '"confidence":"high|medium|low","notes":"brief explanation"}';
+  } else {
+    prompt = 'Here is a recipe' + (mode === 'url' ? ' extracted from a webpage' : '') + ':\n\n' + text + '\n\n' +
+      'This recipe makes ' + portions + ' serving' + (portions !== 1 ? 's' : '') + '. ' +
+      'Calculate nutrition macros PER SERVING.\n\n' +
+      'Return ONLY a valid JSON object with exactly these fields (numbers only, no units in values):\n' +
+      '{"name":"recipe name","protein":0,"calories":0,"carbs":0,"fat":0,"sugar":0,"sodium":0,' +
+      '"confidence":"high|medium|low","notes":"brief explanation or caveats"}';
+  }
+
+  try {
+    const response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      payload: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: prompt }]
+      }),
+      muteHttpExceptions: true
+    });
+
+    const responseData = JSON.parse(response.getContentText());
+    if (responseData.error) return { error: 'Claude API: ' + responseData.error.message };
+
+    const content = responseData.content[0].text;
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { error: 'Could not parse AI response — try again' };
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    // Ensure numeric fields
+    ['protein','calories','carbs','fat','sugar','sodium'].forEach(k => {
+      parsed[k] = Math.round(parseFloat(parsed[k]) || 0);
+    });
+    return parsed;
+  } catch (err) {
+    return { error: 'AI analysis failed: ' + err.message };
+  }
+}
+
+// ---- logFoodDirect ----
+// Writes a food entry directly to Log without requiring a Foods library entry.
+function logFoodDirect(body) {
+  const now = new Date();
+  const timestamp = now.toISOString();
+  const date = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+  const protein  = parseFloat(body.protein)  || 0;
+  const calories = parseFloat(body.calories) || 0;
+  const carbs    = parseFloat(body.carbs)    || 0;
+  const fat      = parseFloat(body.fat)      || 0;
+  const sugar    = parseFloat(body.sugar)    || 0;
+  const sodium   = parseFloat(body.sodium)   || 0;
+  const name     = body.name || 'Recipe';
+
+  const sheet = getSheet('Log');
+  sheet.appendRow([timestamp, date, 'food', name, 1, protein, calories, carbs, fat, sugar, sodium]);
+
+  rebuildDailySummary(date);
+
+  return {
+    success: true,
+    entry: { timestamp, date, type: 'food', item: name, servings: 1, protein, calories, carbs, fat, sugar, sodium }
+  };
+}
 
 // ---- getSummaryHistory ----
 function getSummaryHistory() {
