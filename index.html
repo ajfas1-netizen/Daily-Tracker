@@ -458,33 +458,43 @@
   .log-entry .log-item { flex: 1; }
   .log-entry .log-macros { color: var(--dim); text-align: right; font-size: 12px; }
 
-  /* --- Weight Section --- */
-  .weight-card {
+  /* --- Weight Strip (quick log) --- */
+  .weight-strip {
+    display: flex; align-items: center; gap: 10px;
     background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-    padding: 16px; margin-bottom: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    padding: 12px 16px; margin-bottom: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
   }
-  .weight-entry { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-  .weight-entry input {
+  .weight-strip.unlogged { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange); }
+  .weight-strip-label { font-size: 13px; font-weight: 600; color: var(--dim); white-space: nowrap; }
+  .weight-strip.unlogged .weight-strip-label { color: var(--orange); }
+  .weight-strip input {
     background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
-    padding: 10px 12px; color: var(--text); font-size: 18px; font-weight: 700;
-    width: 100px; text-align: center;
+    padding: 8px 10px; color: var(--text); font-size: 17px; font-weight: 700;
+    width: 90px; text-align: center; flex-shrink: 0;
   }
-  .weight-entry input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-  .weight-entry .unit { color: var(--dim); font-size: 14px; }
+  .weight-strip input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .weight-strip .unit { color: var(--dim); font-size: 13px; flex-shrink: 0; }
   .weight-save-btn {
     background: var(--accent); color: #fff; border: none; border-radius: 10px;
-    padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer;
+    padding: 8px 14px; font-size: 14px; font-weight: 700; cursor: pointer; flex-shrink: 0;
   }
   .weight-save-btn:active { transform: scale(0.95); }
-  .weight-today { font-size: 13px; color: var(--green); margin-left: auto; }
-  .weight-chart { width: 100%; height: 160px; display: block; }
-  .weight-stats { display: flex; justify-content: space-around; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .weight-logged-badge {
+    font-size: 13px; color: var(--green); margin-left: auto; white-space: nowrap; flex-shrink: 0;
+  }
+
+  /* --- Weight Chart (inside Trends) --- */
+  .weight-chart { width: 100%; height: 160px; display: block; margin-bottom: 4px; }
+  .weight-stats { display: flex; justify-content: space-around; padding: 12px 0 4px; border-top: 1px solid var(--border); }
   .weight-stat { text-align: center; }
   .weight-stat .stat-label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
   .weight-stat .stat-value { font-size: 18px; font-weight: 800; margin-top: 2px; }
   .weight-stat .stat-value.down { color: var(--green); }
   .weight-stat .stat-value.up { color: var(--red); }
   .weight-stat .stat-value.neutral { color: var(--dim); }
+  .trends-weight-header { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin: 0 0 10px; }
+  .trends-divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 
   /* --- Trends --- */
   .trends-grid {
@@ -725,17 +735,14 @@
   <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)">Bourbon<span class="sub">+1 / 97 cal</span></button>
 </div>
 
-<!-- Bodyweight -->
+<!-- Bodyweight Quick Log -->
 <h2>Bodyweight</h2>
-<div class="weight-card">
-  <div class="weight-entry">
-    <input type="number" id="weightInput" inputmode="decimal" step="0.1" value="241">
-    <span class="unit">lbs</span>
-    <button class="weight-save-btn" id="weightSaveBtn" onclick="saveWeight()">Log</button>
-    <span class="weight-today" id="weightToday"></span>
-  </div>
-  <canvas class="weight-chart" id="weightChart"></canvas>
-  <div class="weight-stats" id="weightStats"></div>
+<div class="weight-strip unlogged" id="weightStrip">
+  <span class="weight-strip-label" id="weightStripLabel">Log today's weight</span>
+  <input type="number" id="weightInput" inputmode="decimal" step="0.1" placeholder="0.0">
+  <span class="unit">lbs</span>
+  <button class="weight-save-btn" id="weightSaveBtn" onclick="saveWeight()">Log</button>
+  <span class="weight-logged-badge" id="weightToday"></span>
 </div>
 
 <!-- Trends (collapsible) -->
@@ -745,6 +752,10 @@
   <span class="arrow">&#9660;</span>
 </button>
 <div class="section-content" id="trendsSection">
+  <p class="trends-weight-header">Weight</p>
+  <canvas class="weight-chart" id="weightChart"></canvas>
+  <div class="weight-stats" id="weightStats"></div>
+  <hr class="trends-divider">
   <div id="trendsList"><div style="color:var(--dim);text-align:center;padding:12px 0;font-size:14px;">Loading...</div></div>
 </div>
 
@@ -1116,9 +1127,24 @@ async function loadWeightData() {
     const history = await apiGet('getWeightHistory');
     renderWeightChart(history);
     renderWeightStats(history);
-    // Pre-fill input with last known weight
-    if (history.length > 0) {
-      document.getElementById('weightInput').value = history[history.length - 1].weight;
+    // Check if already logged today
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const todayEntry = history.find(h => h.date === todayStr);
+    const strip = document.getElementById('weightStrip');
+    const label = document.getElementById('weightStripLabel');
+    const badge = document.getElementById('weightToday');
+    if (todayEntry) {
+      strip.classList.remove('unlogged');
+      label.textContent = 'Update weight';
+      badge.textContent = todayEntry.weight + ' lbs today';
+      document.getElementById('weightInput').value = todayEntry.weight;
+    } else {
+      strip.classList.add('unlogged');
+      label.textContent = 'Log today\'s weight';
+      badge.textContent = '';
+      if (history.length > 0) {
+        document.getElementById('weightInput').value = history[history.length - 1].weight;
+      }
     }
   } catch (err) { console.error('Weight load failed:', err); }
 }
@@ -1139,10 +1165,6 @@ function renderWeightChart(history) {
     ctx.fillText('Log your weight to see the trend', W / 2, H / 2);
     return;
   }
-
-  const todayStr = new Date().toLocaleDateString('en-CA');
-  const todayEntry = history.find(h => h.date === todayStr);
-  document.getElementById('weightToday').textContent = todayEntry ? todayEntry.weight + ' lbs today' : '';
 
   if (history.length === 1) {
     ctx.fillStyle = '#6b7a99'; ctx.font = '14px -apple-system, sans-serif'; ctx.textAlign = 'center';
