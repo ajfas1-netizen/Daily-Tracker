@@ -55,6 +55,9 @@ function doPost(e) {
     case 'addFood':
       result = addFood(body);
       break;
+    case 'deleteFood':
+      result = deleteFood(body);
+      break;
     case 'logFood':
       result = logFood(body);
       break;
@@ -139,6 +142,24 @@ function addFood(body) {
     food: { id: newId, name: body.name, servingLabel: body.servingLabel || '1 serving',
             protein, calories, carbs, fat, sugar, sodium, dateAdded: today }
   };
+}
+
+// ---- deleteFood ----
+function deleteFood(body) {
+  const foodId = body.foodId;
+  if (!foodId) return { error: 'Missing foodId' };
+
+  const sheet = getSheet('Foods');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === foodId) {
+      sheet.deleteRow(i + 1);
+      return { success: true, deleted: foodId };
+    }
+  }
+
+  return { error: 'Food not found: ' + foodId };
 }
 
 // ---- logFood ----
