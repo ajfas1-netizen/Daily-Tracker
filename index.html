@@ -1143,6 +1143,104 @@ function renderWeightStats(history) {
     <div class="weight-stat"><div class="stat-label">7-Day</div><div class="stat-value ${wc2}">${weekChange}</div></div>`;
 }
 
+// ---- Trends ----
+async function loadTrendsData() {
+  try {
+    const history = await apiGet('getSummaryHistory');
+    renderTrends(history);
+  } catch (err) { console.error('Trends load failed:', err); }
+}
+
+function renderTrends(history) {
+  const container = document.getElementById('trendsList');
+  if (!history.length) {
+    container.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px 0;font-size:14px;">No history yet. Keep logging!</div>';
+    return;
+  }
+
+  const today = new Date().toLocaleDateString('en-CA');
+  const past = history.filter(h => h.date < today).slice(-7);
+  const n = past.length;
+
+  if (n === 0) {
+    container.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px 0;font-size:14px;">Complete a full day of logging to see trends.</div>';
+    return;
+  }
+
+  const avgProtein  = Math.round(past.reduce((s, h) => s + h.protein, 0) / n);
+  const avgCalories = Math.round(past.reduce((s, h) => s + h.calories, 0) / n);
+  const avgWater    = Math.round(past.reduce((s, h) => s + h.waterOz, 0) / n);
+
+  const proteinHits = past.filter(h => h.protein >= targets.protein).length;
+  const hitRatePct  = Math.round((proteinHits / n) * 100);
+
+  const sorted = [...past].reverse();
+  let streak = 0;
+  for (const h of sorted) {
+    if (h.protein >= targets.protein) streak++;
+    else break;
+  }
+
+  const totalDrinks = past.reduce((s, h) => s + h.coorsCount + h.bourbonCount, 0);
+  const drinkCals   = past.reduce((s, h) => s + (h.coorsCount * 102) + (h.bourbonCount * 97), 0);
+  const workoutDays = past.filter(h => h.workoutDone === 'Yes').length;
+
+  const label = n < 7 ? n + '-day avg' : '7-day avg';
+
+  const proteinColor  = avgProtein >= targets.protein ? 'hit' : avgProtein >= targets.protein * 0.8 ? 'warn' : 'miss';
+  const calorieColor  = avgCalories <= targets.calories ? 'hit' : avgCalories <= targets.calories * 1.1 ? 'warn' : 'miss';
+  const hitColor      = hitRatePct >= 80 ? 'hit' : hitRatePct >= 50 ? 'warn' : 'miss';
+  const streakColor   = streak >= 3 ? 'hit' : streak >= 1 ? 'warn' : 'miss';
+  const waterColor    = avgWater >= targets.water ? 'hit' : avgWater >= targets.water * 0.75 ? 'warn' : 'miss';
+  const drinkColor    = totalDrinks === 0 ? 'hit' : totalDrinks <= n ? 'warn' : 'miss';
+
+  container.innerHTML = `
+    <div class="trends-grid">
+      <div class="trend-stat">
+        <div class="trend-label">Protein ${label}</div>
+        <div class="trend-value ${proteinColor}">${avgProtein}g</div>
+        <div class="trend-sub">Goal: ${targets.protein}g</div>
+        <div class="trend-mini-bar"><div class="trend-mini-fill ${avgProtein >= targets.protein ? 'hit' : ''}" style="width:${Math.min(100,(avgProtein/targets.protein)*100)}%"></div></div>
+      </div>
+      <div class="trend-stat">
+        <div class="trend-label">Calorie ${label}</div>
+        <div class="trend-value ${calorieColor}">${avgCalories.toLocaleString()}</div>
+        <div class="trend-sub">Target: ${targets.calories.toLocaleString()}</div>
+        <div class="trend-mini-bar"><div class="trend-mini-fill ${avgCalories > targets.calories ? 'over' : avgCalories >= targets.calories * 0.9 ? 'hit' : ''}" style="width:${Math.min(100,(avgCalories/targets.calories)*100)}%"></div></div>
+      </div>
+      <div class="trend-stat">
+        <div class="trend-label">Protein Hit Rate</div>
+        <div class="trend-value ${hitColor}">${proteinHits}/${n}</div>
+        <div class="trend-sub">${hitRatePct}% of days on target</div>
+      </div>
+      <div class="trend-stat">
+        <div class="trend-label">Current Streak</div>
+        <div class="trend-value ${streakColor}">${streak} ${streak === 1 ? 'day' : 'days'}</div>
+        <div class="trend-sub">${streak > 0 ? 'Consecutive protein days' : 'Hit your goal to start'}</div>
+      </div>
+      <div class="trend-stat">
+        <div class="trend-label">Avg Water</div>
+        <div class="trend-value ${waterColor}">${avgWater} oz</div>
+        <div class="trend-sub">Target: ${targets.water} oz/day</div>
+      </div>
+      <div class="trend-stat">
+        <div class="trend-label">Drinks (${n}d)</div>
+        <div class="trend-value ${drinkColor}">${totalDrinks}</div>
+        <div class="trend-sub">${drinkCals} empty cal total</div>
+      </div>
+      <div class="trend-stat">
+        <div class="trend-label">Workouts (${n}d)</div>
+        <div class="trend-value ${workoutDays > 0 ? 'hit' : 'miss'}">${workoutDays}</div>
+        <div class="trend-sub">of ${n} days tracked</div>
+      </div>
+    </div>`;
+}
+
+// ---- Recipe Builder ----
+function openRecipeBuilder() {
+  window.location.href = 'recipe.html';
+}
+
 // ---- Hard Refresh (cache bust) ----
 function hardRefresh() {
   if ('caches' in window) {
