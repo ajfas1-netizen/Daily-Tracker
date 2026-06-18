@@ -20,6 +20,9 @@ function doGet(e) {
     case 'getTodayLog':
       result = getTodayLog();
       break;
+    case 'getWeightHistory':
+      result = getWeightHistory();
+      break;
     default:
       result = { error: 'Unknown action: ' + action };
   }
@@ -54,6 +57,9 @@ function doPost(e) {
       break;
     case 'seedFoods':
       result = seedFoods();
+      break;
+    case 'logBodyweight':
+      result = logBodyweight(body);
       break;
     default:
       result = { error: 'Unknown action: ' + action };
@@ -329,6 +335,52 @@ function rebuildDailySummary(date) {
   } else {
     summarySheet.appendRow(rowData);
   }
+}
+
+// ---- logBodyweight ----
+function logBodyweight(body) {
+  const weight = parseFloat(body.weight);
+  if (!weight || weight < 50 || weight > 500) return { error: 'Invalid weight' };
+
+  const date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const summarySheet = getSheet('DailySummary');
+  const data = summarySheet.getDataRange().getValues();
+  let foundRow = -1;
+
+  for (let i = 1; i < data.length; i++) {
+    const rowDate = data[i][0] instanceof Date
+      ? Utilities.formatDate(data[i][0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : data[i][0];
+    if (rowDate === date) { foundRow = i + 1; break; }
+  }
+
+  if (foundRow > 0) {
+    summarySheet.getRange(foundRow, 9).setValue(weight);
+  } else {
+    summarySheet.appendRow([date, 0, 0, 0, 0, 0, 0, 'No', weight]);
+  }
+
+  return { success: true, date: date, weight: weight };
+}
+
+// ---- getWeightHistory ----
+function getWeightHistory() {
+  const summarySheet = getSheet('DailySummary');
+  const data = summarySheet.getDataRange().getValues();
+  const history = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const weight = row[8];
+    if (!weight) continue;
+    const date = row[0] instanceof Date
+      ? Utilities.formatDate(row[0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : row[0];
+    history.push({ date: date, weight: parseFloat(weight) });
+  }
+
+  history.sort((a, b) => a.date.localeCompare(b.date));
+  return history;
 }
 
 // ---- Seed Foods ----

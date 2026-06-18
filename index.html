@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Grind</title>
-<!-- v5 -->
+<!-- v6 -->
 <style>
   :root {
     --bg: #0b1120;
@@ -432,6 +432,81 @@
   .log-entry .log-time { color: var(--dim); font-size: 12px; width: 55px; flex-shrink: 0; }
   .log-entry .log-item { flex: 1; }
   .log-entry .log-macros { color: var(--dim); text-align: right; font-size: 12px; }
+
+  /* --- Weight Section --- */
+  .weight-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+
+  .weight-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .weight-entry input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 700;
+    width: 100px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  .weight-entry input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+  .weight-entry .unit { color: var(--dim); font-size: 14px; }
+
+  .weight-save-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .weight-save-btn:active { transform: scale(0.95); }
+
+  .weight-today {
+    font-size: 13px;
+    color: var(--green);
+    margin-left: auto;
+  }
+
+  .weight-chart {
+    width: 100%;
+    height: 160px;
+    display: block;
+  }
+
+  .weight-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .weight-stat {
+    text-align: center;
+  }
+  .weight-stat .stat-label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .weight-stat .stat-value { font-size: 18px; font-weight: 800; margin-top: 2px; }
+  .weight-stat .stat-value.down { color: var(--green); }
+  .weight-stat .stat-value.up { color: var(--red); }
+  .weight-stat .stat-value.neutral { color: var(--dim); }
 </style>
 </head>
 <body>
@@ -478,6 +553,19 @@
   </div>
   <button class="tap-btn tap-coors" onclick="tapLiquid('coors', this)">Coors<span class="sub">+1 / 102 cal</span></button>
   <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)">Bourbon<span class="sub">+1 / 97 cal</span></button>
+</div>
+
+<!-- Bodyweight -->
+<h2>Bodyweight</h2>
+<div class="weight-card">
+  <div class="weight-entry">
+    <input type="number" id="weightInput" inputmode="decimal" step="0.1" placeholder="241.0">
+    <span class="unit">lbs</span>
+    <button class="weight-save-btn" id="weightSaveBtn" onclick="saveWeight()">Log</button>
+    <span class="weight-today" id="weightToday"></span>
+  </div>
+  <canvas class="weight-chart" id="weightChart"></canvas>
+  <div class="weight-stats" id="weightStats"></div>
 </div>
 
 <!-- Food Library (collapsible) -->
@@ -595,6 +683,7 @@ async function loadAll() {
     renderTotals(totals);
     renderFoods(foods);
     renderLog(log);
+    loadWeightData();
     document.getElementById('statusBanner').className = 'status-banner';
   } catch (err) {
     showStatus('Failed to connect. Check your internet.', 'error');
@@ -791,6 +880,208 @@ function renderLog(entries) {
       <span class="log-macros">${macros}</span>
     </div>`;
   }).join('');
+}
+
+// ---- Bodyweight ----
+async function saveWeight() {
+  const input = document.getElementById('weightInput');
+  const weight = parseFloat(input.value);
+  if (!weight || weight < 50 || weight > 500) { alert('Enter a valid weight.'); return; }
+
+  const btn = document.getElementById('weightSaveBtn');
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  try {
+    const result = await apiPost({ action: 'logBodyweight', weight: weight });
+    if (result.success) {
+      input.value = '';
+      showStatus('Logged ' + weight + ' lbs', 'success');
+      await loadWeightData();
+    } else {
+      showStatus('Error: ' + (result.error || 'Unknown'), 'error');
+    }
+  } catch (err) {
+    showStatus('Failed to log weight', 'error');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Log';
+  }
+}
+
+async function loadWeightData() {
+  try {
+    const history = await apiGet('getWeightHistory');
+    renderWeightChart(history);
+    renderWeightStats(history);
+  } catch (err) {
+    console.error('Weight load failed:', err);
+  }
+}
+
+function renderWeightChart(history) {
+  const canvas = document.getElementById('weightChart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+  const H = rect.height;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (history.length === 0) {
+    ctx.fillStyle = '#6b7a99';
+    ctx.font = '14px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Log your weight to see the trend', W / 2, H / 2);
+    return;
+  }
+
+  // Show today's weight
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const todayEntry = history.find(h => h.date === todayStr);
+  document.getElementById('weightToday').textContent = todayEntry ? todayEntry.weight + ' lbs today' : '';
+
+  if (history.length === 1) {
+    ctx.fillStyle = '#6b7a99';
+    ctx.font = '14px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(history[0].weight + ' lbs - more data points coming', W / 2, H / 2);
+    return;
+  }
+
+  const pad = { top: 20, right: 16, bottom: 30, left: 44 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  const weights = history.map(h => h.weight);
+  const minW = Math.floor(Math.min(...weights) - 2);
+  const maxW = Math.ceil(Math.max(...weights) + 2);
+  const range = maxW - minW || 1;
+
+  function x(i) { return pad.left + (i / (history.length - 1)) * chartW; }
+  function y(w) { return pad.top + chartH - ((w - minW) / range) * chartH; }
+
+  // Grid lines
+  ctx.strokeStyle = '#1e2d4a';
+  ctx.lineWidth = 1;
+  const gridSteps = 4;
+  for (let i = 0; i <= gridSteps; i++) {
+    const val = minW + (range * i / gridSteps);
+    const yPos = y(val);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, yPos);
+    ctx.lineTo(W - pad.right, yPos);
+    ctx.stroke();
+
+    ctx.fillStyle = '#6b7a99';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(val), pad.left - 6, yPos + 4);
+  }
+
+  // Date labels
+  ctx.fillStyle = '#6b7a99';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  const labelCount = Math.min(history.length, 6);
+  for (let i = 0; i < labelCount; i++) {
+    const idx = Math.round(i * (history.length - 1) / (labelCount - 1));
+    const d = history[idx].date.slice(5); // MM-DD
+    ctx.fillText(d, x(idx), H - 6);
+  }
+
+  // Gradient fill under line
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
+  grad.addColorStop(0, 'rgba(59,130,246,0.3)');
+  grad.addColorStop(1, 'rgba(59,130,246,0)');
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(history[0].weight));
+  for (let i = 1; i < history.length; i++) ctx.lineTo(x(i), y(history[i].weight));
+  ctx.lineTo(x(history.length - 1), pad.top + chartH);
+  ctx.lineTo(x(0), pad.top + chartH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(history[0].weight));
+  for (let i = 1; i < history.length; i++) ctx.lineTo(x(i), y(history[i].weight));
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Dots
+  history.forEach((h, i) => {
+    ctx.beginPath();
+    ctx.arc(x(i), y(h.weight), 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#3b82f6';
+    ctx.fill();
+    ctx.strokeStyle = '#0b1120';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+
+  // Latest dot highlight
+  const last = history.length - 1;
+  ctx.beginPath();
+  ctx.arc(x(last), y(history[last].weight), 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#60a5fa';
+  ctx.fill();
+  ctx.strokeStyle = '#0b1120';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function renderWeightStats(history) {
+  const container = document.getElementById('weightStats');
+  if (history.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const start = history[0].weight;
+  const current = history[history.length - 1].weight;
+  const change = current - start;
+  const changeClass = change < 0 ? 'down' : change > 0 ? 'up' : 'neutral';
+  const changeSign = change > 0 ? '+' : '';
+
+  let weekChange = '--';
+  let weekClass = 'neutral';
+  if (history.length >= 2) {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const weekStr = sevenDaysAgo.toLocaleDateString('en-CA');
+    const weekEntry = history.find(h => h.date <= weekStr) || history[0];
+    const wc = current - weekEntry.weight;
+    weekClass = wc < 0 ? 'down' : wc > 0 ? 'up' : 'neutral';
+    weekChange = (wc > 0 ? '+' : '') + wc.toFixed(1);
+  }
+
+  container.innerHTML = `
+    <div class="weight-stat">
+      <div class="stat-label">Start</div>
+      <div class="stat-value neutral">${start}</div>
+    </div>
+    <div class="weight-stat">
+      <div class="stat-label">Current</div>
+      <div class="stat-value">${current}</div>
+    </div>
+    <div class="weight-stat">
+      <div class="stat-label">Total</div>
+      <div class="stat-value ${changeClass}">${changeSign}${change.toFixed(1)}</div>
+    </div>
+    <div class="weight-stat">
+      <div class="stat-label">7-Day</div>
+      <div class="stat-value ${weekClass}">${weekChange}</div>
+    </div>
+  `;
 }
 
 // ---- Refresh ----
