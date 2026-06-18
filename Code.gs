@@ -23,6 +23,9 @@ function doGet(e) {
     case 'getWeightHistory':
       result = getWeightHistory();
       break;
+    case 'getYesterday':
+      result = getYesterday();
+      break;
     default:
       result = { error: 'Unknown action: ' + action };
   }
@@ -335,6 +338,90 @@ function rebuildDailySummary(date) {
   } else {
     summarySheet.appendRow(rowData);
   }
+}
+
+// ---- getYesterday ----
+function getYesterday() {
+  const now = new Date();
+  now.setDate(now.getDate() - 1);
+  const date = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+  // Get yesterday's log totals
+  const logSheet = getSheet('Log');
+  const logData = logSheet.getDataRange().getValues();
+
+  let protein = 0, calories = 0, carbs = 0, fat = 0, waterOz = 0;
+  let coffeeCount = 0, coorsCount = 0, bourbonCount = 0;
+  let foodItems = [];
+
+  for (let i = 1; i < logData.length; i++) {
+    const row = logData[i];
+    const rowDate = row[1] instanceof Date
+      ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : row[1];
+    if (rowDate !== date) continue;
+
+    const type = row[2];
+    protein += row[5] || 0;
+    calories += row[6] || 0;
+    carbs += row[7] || 0;
+    fat += row[8] || 0;
+
+    if (type === 'water') waterOz += row[4] || 0;
+    if (type === 'coffee') coffeeCount += 1;
+    if (type === 'coors') coorsCount += 1;
+    if (type === 'bourbon') bourbonCount += 1;
+    if (type === 'food') foodItems.push(row[3]);
+  }
+
+  // Check if workout happened
+  const workoutSheet = getSheet('Workouts');
+  const workoutData = workoutSheet.getDataRange().getValues();
+  let workedOut = false;
+  let workoutSummary = [];
+  for (let i = 1; i < workoutData.length; i++) {
+    const rowDate = workoutData[i][0] instanceof Date
+      ? Utilities.formatDate(workoutData[i][0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : workoutData[i][0];
+    if (rowDate === date) {
+      workedOut = true;
+      workoutSummary.push(workoutData[i][1] + ': ' + workoutData[i][2]);
+    }
+  }
+
+  return {
+    date, protein, calories, carbs, fat, waterOz,
+    coffeeCount, coorsCount, bourbonCount,
+    workedOut, workoutSummary, foodItems,
+    hasData: protein > 0 || calories > 0 || waterOz > 0
+  };
+}
+
+// ---- getTodayWorkout ----
+function getTodayWorkout() {
+  const date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const workoutSheet = getSheet('Workouts');
+  const data = workoutSheet.getDataRange().getValues();
+  let workedOut = false;
+  let exercises = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const rowDate = data[i][0] instanceof Date
+      ? Utilities.formatDate(data[i][0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : data[i][0];
+    if (rowDate === date) {
+      workedOut = true;
+      exercises.push({
+        muscleGroup: data[i][1],
+        exercise: data[i][2],
+        sets: data[i][3],
+        reps: data[i][4],
+        weight: data[i][5]
+      });
+    }
+  }
+
+  return { workedOut, exercises };
 }
 
 // ---- logBodyweight ----
