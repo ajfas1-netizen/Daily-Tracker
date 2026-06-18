@@ -29,6 +29,9 @@ function doGet(e) {
     case 'getYesterday':
       result = getYesterday();
       break;
+    case 'getSummaryHistory':
+      result = getSummaryHistory();
+      break;
     default:
       result = { error: 'Unknown action: ' + action };
   }
@@ -520,3 +523,33 @@ function syncFoods() {
 }
 
 function seedFoods() { return syncFoods(); }
+
+// ---- getSummaryHistory ----
+function getSummaryHistory() {
+  const sheet = getSheet('DailySummary');
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  const history = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row[0]) continue;
+    const date = row[0] instanceof Date
+      ? Utilities.formatDate(row[0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : row[0];
+    history.push({
+      date,
+      protein:      row[1] || 0,
+      calories:     row[2] || 0,
+      waterOz:      row[3] || 0,
+      coffeeCount:  row[4] || 0,
+      coorsCount:   row[5] || 0,
+      bourbonCount: row[6] || 0,
+      workoutDone:  row[7] || 'No',
+      bodyweight:   row[8] || null
+    });
+  }
+
+  history.sort((a, b) => a.date.localeCompare(b.date));
+  return history;
+}
