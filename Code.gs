@@ -495,6 +495,7 @@ function seedFoods() {
     ['f004', 'ONE Bar Reeses PB',            '1 bar',       18, 220, 21,  8,  3,   0, today],
     ['f005', '2-Egg Veggie Omelette',        '1 omelette',  12, 220,  8, 14,  4,   0, today],
     ['f006', 'Coffee w/ Oat Milk & Syrup',   '1 cup',        0,  75, 17,  1, 15,   0, today],
+    ['f007', 'Grilled Chicken Breast',        '5 oz',        35, 185,  0,  5,  0,   0, today],
   ];
 
   seeds.forEach(row => sheet.appendRow(row));
