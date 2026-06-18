@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Grind</title>
-<!-- v4 -->
+<!-- v5 -->
 <style>
   :root {
     --bg: #0b1120;
@@ -794,13 +794,8 @@ function renderLog(entries) {
 }
 
 // ---- Refresh ----
-async function refreshAll(btn) {
-  if (btn) {
-    btn.classList.remove('spinning');
-    void btn.offsetWidth;
-    btn.classList.add('spinning');
-  }
-  await loadAll();
+function refreshAll() {
+  location.reload(true);
 }
 
 // ---- Init ----
