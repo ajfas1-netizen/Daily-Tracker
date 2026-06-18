@@ -481,23 +481,42 @@ function getWeightHistory() {
   return history;
 }
 
-// ---- Seed Foods ----
-function seedFoods() {
+// ---- Seed / Sync Foods ----
+// Run syncFoods() from the Apps Script editor after updating this list to add new items.
+// Safe to run anytime — only adds foods that aren't already in the sheet (matched by name).
+function syncFoods() {
   const sheet = getSheet('Foods');
   const existing = sheet.getDataRange().getValues();
-  if (existing.length > 1) return { success: true, message: 'Foods already seeded', count: existing.length - 1 };
+  const existingNames = new Set(existing.slice(1).map(r => r[1].toString().toLowerCase()));
+
+  let maxNum = 0;
+  existing.slice(1).forEach(r => {
+    const n = parseInt(String(r[0]).replace('f', ''));
+    if (!isNaN(n) && n > maxNum) maxNum = n;
+  });
 
   const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  const seeds = [
-    ['f001', 'Beef Egg Roll Bowl',          '1 container', 16, 230, 14, 12,  5,   0, today],
-    ['f002', 'Turkey with Tomato',           '1 container', 26, 160,  4,  6,  2,   0, today],
-    ['f003', 'Steamed Broccoli',             '1 serving',    3,  60, 11,  1,  2,   0, today],
-    ['f004', 'ONE Bar Reeses PB',            '1 bar',       18, 220, 21,  8,  3,   0, today],
-    ['f005', '2-Egg Veggie Omelette',        '1 omelette',  12, 220,  8, 14,  4,   0, today],
-    ['f006', 'Coffee w/ Oat Milk & Syrup',   '1 cup',        0,  75, 17,  1, 15,   0, today],
-    ['f007', 'Grilled Chicken Breast',        '5 oz',        35, 185,  0,  5,  0,   0, today],
+  const catalog = [
+    ['Beef Egg Roll Bowl',         '1 container', 16, 230, 14, 12,  5,   0],
+    ['Turkey with Tomato',         '1 container', 26, 160,  4,  6,  2,   0],
+    ['Steamed Broccoli',           '1 serving',    3,  60, 11,  1,  2,   0],
+    ['ONE Bar Reeses PB',          '1 bar',       18, 220, 21,  8,  3,   0],
+    ['2-Egg Veggie Omelette',      '1 omelette',  12, 220,  8, 14,  4,   0],
+    ['Coffee w/ Oat Milk & Syrup', '1 cup',        0,  75, 17,  1, 15,   0],
+    ['Grilled Chicken Breast',     '5 oz',        35, 185,  0,  5,  0,   0],
   ];
 
-  seeds.forEach(row => sheet.appendRow(row));
-  return { success: true, message: 'Seeded ' + seeds.length + ' foods' };
+  let added = 0;
+  catalog.forEach(([name, ...rest]) => {
+    if (!existingNames.has(name.toLowerCase())) {
+      maxNum++;
+      const newId = 'f' + String(maxNum).padStart(3, '0');
+      sheet.appendRow([newId, name, ...rest, today]);
+      added++;
+    }
+  });
+
+  return { success: true, message: added > 0 ? 'Added ' + added + ' new food(s)' : 'All foods already present' };
 }
+
+function seedFoods() { return syncFoods(); }
