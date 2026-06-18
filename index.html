@@ -6,20 +6,23 @@
 <title>Daily Tracker</title>
 <style>
   :root {
-    --bg: #0f0f0f;
-    --card: #1a1a1a;
-    --border: #2a2a2a;
-    --text: #e8e8e8;
-    --dim: #888;
-    --accent: #4fc3f7;
-    --green: #66bb6a;
-    --orange: #ffa726;
-    --red: #ef5350;
-    --coffee-bg: #5d4037;
-    --water-bg: #1565c0;
-    --coors-bg: #f9a825;
+    --bg: #0a0a0f;
+    --card: #141420;
+    --card2: #1a1a2e;
+    --border: #252540;
+    --text: #eee;
+    --dim: #777;
+    --accent: #6c5ce7;
+    --accent-glow: rgba(108,92,231,0.3);
+    --green: #00b894;
+    --green-glow: rgba(0,184,148,0.3);
+    --orange: #fdcb6e;
+    --red: #ff6b6b;
+    --coffee-bg: linear-gradient(135deg, #5d4037, #795548);
+    --water-bg: linear-gradient(135deg, #0984e3, #74b9ff);
+    --coors-bg: linear-gradient(135deg, #f9a825, #fdd835);
     --coors-text: #1a1a1a;
-    --bourbon-bg: #bf360c;
+    --bourbon-bg: linear-gradient(135deg, #d35400, #e67e22);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -30,147 +33,243 @@
     color: var(--text);
     max-width: 480px;
     margin: 0 auto;
-    padding: 16px;
-    padding-bottom: 100px;
+    padding: 12px 16px 100px;
     min-height: 100vh;
   }
 
-  h1 { font-size: 20px; font-weight: 700; margin-bottom: 16px; text-align: center; }
-  h2 { font-size: 16px; font-weight: 600; margin: 20px 0 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+  /* --- Header --- */
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 8px 0;
+    position: relative;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+  }
+  .refresh-btn {
+    position: absolute;
+    right: 16px;
+    top: 14px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    color: var(--dim);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s, color 0.2s;
+  }
+  .refresh-btn:active { color: var(--accent); }
+  .refresh-btn.spinning { animation: spin 0.6s ease; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .header .date {
+    font-size: 13px;
+    color: var(--dim);
+    margin-top: 2px;
+  }
 
   /* --- Status Banner --- */
   .status-banner {
     text-align: center;
     padding: 8px;
     font-size: 12px;
-    border-radius: 8px;
+    border-radius: 10px;
     margin-bottom: 12px;
     display: none;
   }
   .status-banner.loading { display: block; background: var(--border); color: var(--dim); }
-  .status-banner.error { display: block; background: #3e1a1a; color: var(--red); }
-  .status-banner.success { display: block; background: #1a3e1a; color: var(--green); }
+  .status-banner.error { display: block; background: rgba(255,107,107,0.15); color: var(--red); }
+  .status-banner.success { display: block; background: rgba(0,184,148,0.15); color: var(--green); }
 
   /* --- Daily Totals --- */
   .totals {
     background: var(--card);
-    border-radius: 14px;
-    padding: 16px;
+    border-radius: 16px;
+    padding: 18px;
     margin-bottom: 16px;
     border: 1px solid var(--border);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
   }
 
-  .macro-row { margin-bottom: 12px; }
-  .macro-row:last-child { margin-bottom: 0; }
+  .macro-row { margin-bottom: 14px; }
+  .macro-row:last-of-type { margin-bottom: 0; }
 
   .macro-header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
   }
 
-  .macro-label { font-size: 14px; font-weight: 600; }
-  .macro-value { font-size: 22px; font-weight: 700; }
-  .macro-target { font-size: 13px; color: var(--dim); }
+  .macro-label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dim); }
+  .macro-value { font-size: 28px; font-weight: 800; }
+  .macro-target { font-size: 14px; color: var(--dim); font-weight: 400; }
 
   .progress-bar {
-    height: 8px;
+    height: 10px;
     background: var(--border);
-    border-radius: 4px;
+    border-radius: 5px;
     overflow: hidden;
   }
   .progress-fill {
     height: 100%;
-    border-radius: 4px;
-    transition: width 0.3s ease;
+    border-radius: 5px;
+    transition: width 0.4s ease;
   }
+  .progress-protein { background: linear-gradient(90deg, #6c5ce7, #a29bfe); box-shadow: 0 0 12px var(--accent-glow); }
+  .progress-protein.hit { background: linear-gradient(90deg, #00b894, #55efc4); box-shadow: 0 0 12px var(--green-glow); }
+  .progress-calorie { background: linear-gradient(90deg, #fdcb6e, #ffeaa7); }
+  .progress-calorie.over { background: linear-gradient(90deg, #ff6b6b, #fab1a0); }
 
   .chips {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 12px;
+    margin-top: 14px;
   }
 
   .chip {
-    background: var(--border);
-    border-radius: 20px;
-    padding: 6px 12px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
     font-size: 13px;
     font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
-  .chip span { font-weight: 700; }
+  .chip-value { font-size: 18px; font-weight: 800; }
+  .chip-water .chip-value { color: #74b9ff; }
+  .chip-coffee .chip-value { color: #dfe6e9; }
+  .chip-coors .chip-value { color: #ffeaa7; }
+  .chip-bourbon .chip-value { color: #fab1a0; }
+
+  /* --- Section Headers --- */
+  h2 {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 24px 0 12px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
 
   /* --- Quick Tap Buttons --- */
   .quick-taps {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
   }
 
   .tap-btn {
     border: none;
     border-radius: 14px;
-    padding: 18px 12px;
-    font-size: 17px;
+    padding: 20px 12px;
+    font-size: 16px;
     font-weight: 700;
     cursor: pointer;
     color: #fff;
     position: relative;
     overflow: hidden;
-    transition: transform 0.1s;
+    transition: transform 0.1s, box-shadow 0.2s;
     text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   }
-  .tap-btn:active { transform: scale(0.95); }
+  .tap-btn:active { transform: scale(0.95); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
   .tap-btn:disabled { opacity: 0.5; }
-  .tap-btn .sub { display: block; font-size: 12px; font-weight: 400; margin-top: 2px; opacity: 0.8; }
+  .tap-btn .sub { display: block; font-size: 11px; font-weight: 400; margin-top: 3px; opacity: 0.7; }
 
   .tap-coffee { background: var(--coffee-bg); }
   .tap-coors { background: var(--coors-bg); color: var(--coors-text); }
-  .tap-coors .sub { color: var(--coors-text); }
+  .tap-coors .sub { color: var(--coors-text); opacity: 0.6; }
   .tap-bourbon { background: var(--bourbon-bg); }
 
-  .water-group {
-    display: flex;
-    gap: 8px;
-  }
+  .water-group { display: flex; gap: 8px; }
   .water-group .tap-btn {
     flex: 1;
     background: var(--water-bg);
-    padding: 18px 8px;
-    font-size: 15px;
+    padding: 20px 8px;
+    font-size: 14px;
   }
 
-  /* flash animation */
   .tap-btn.flash::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.35);
     animation: flashOut 0.4s ease-out forwards;
   }
   @keyframes flashOut { to { opacity: 0; } }
 
-  /* --- Food Library --- */
-  .food-card {
+  /* --- Collapsible Sections --- */
+  .section-toggle {
+    width: 100%;
     background: var(--card);
     border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    transition: border-radius 0.2s;
+  }
+  .section-toggle .arrow {
+    font-size: 12px;
+    color: var(--dim);
+    transition: transform 0.2s;
+  }
+  .section-toggle.open { border-radius: 14px 14px 0 0; margin-bottom: 0; }
+  .section-toggle.open .arrow { transform: rotate(180deg); }
+
+  .section-content {
+    display: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .section-content.open { display: block; }
+
+  /* --- Food Library --- */
+  .food-card {
+    background: var(--card2);
+    border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 14px;
+    padding: 12px 14px;
     margin-bottom: 8px;
   }
+  .food-card:last-child { margin-bottom: 0; }
 
   .food-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .food-name { font-size: 15px; font-weight: 600; flex: 1; }
-  .food-serving { font-size: 12px; color: var(--dim); }
+  .food-serving { font-size: 11px; color: var(--dim); background: var(--border); padding: 3px 8px; border-radius: 6px; }
   .food-macros { font-size: 12px; color: var(--dim); margin-bottom: 10px; }
 
   .food-actions {
@@ -192,14 +291,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background 0.15s;
   }
-  .serving-btn:active { background: var(--border); }
+  .serving-btn:active { background: var(--accent); color: #fff; }
 
   .serving-count {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 800;
     width: 28px;
     text-align: center;
+    color: var(--accent);
   }
 
   .log-food-btn {
@@ -212,13 +313,15 @@
     font-weight: 700;
     cursor: pointer;
     margin-left: auto;
+    box-shadow: 0 2px 8px var(--green-glow);
+    transition: transform 0.1s;
   }
-  .log-food-btn:active { opacity: 0.8; }
+  .log-food-btn:active { transform: scale(0.95); }
 
   /* --- Add Food Form --- */
   .add-food-toggle {
     width: 100%;
-    background: var(--card);
+    background: transparent;
     border: 1px dashed var(--border);
     border-radius: 12px;
     padding: 14px;
@@ -227,16 +330,16 @@
     font-weight: 600;
     cursor: pointer;
     text-align: center;
-    margin-bottom: 8px;
+    margin-top: 10px;
   }
 
   .add-food-form {
-    background: var(--card);
+    background: var(--card2);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 16px;
     display: none;
-    margin-bottom: 8px;
+    margin-top: 10px;
   }
   .add-food-form.open { display: block; }
 
@@ -266,19 +369,20 @@
   .form-field input {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px;
+    border-radius: 10px;
+    padding: 10px 12px;
     color: var(--text);
     font-size: 15px;
     width: 100%;
+    transition: border-color 0.2s;
   }
-  .form-field input:focus { outline: none; border-color: var(--accent); }
+  .form-field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 
   .batch-toggle {
     display: flex;
     gap: 0;
     margin-bottom: 10px;
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
     border: 1px solid var(--border);
   }
@@ -291,16 +395,17 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+    transition: all 0.2s;
   }
   .batch-toggle button.active {
     background: var(--accent);
-    color: #000;
+    color: #fff;
   }
 
   .save-food-btn {
     width: 100%;
-    background: var(--accent);
-    color: #000;
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    color: #fff;
     border: none;
     border-radius: 10px;
     padding: 12px;
@@ -308,8 +413,10 @@
     font-weight: 700;
     cursor: pointer;
     margin-top: 4px;
+    box-shadow: 0 4px 12px var(--accent-glow);
+    transition: transform 0.1s;
   }
-  .save-food-btn:active { opacity: 0.8; }
+  .save-food-btn:active { transform: scale(0.97); }
 
   /* --- Today's Log --- */
   .log-entry {
@@ -317,28 +424,22 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
     font-size: 13px;
   }
   .log-entry:last-child { border-bottom: none; }
   .log-entry .log-time { color: var(--dim); font-size: 12px; width: 55px; flex-shrink: 0; }
   .log-entry .log-item { flex: 1; }
-  .log-entry .log-macros { color: var(--dim); text-align: right; }
-
-  .log-section {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 8px;
-    max-height: 300px;
-    overflow-y: auto;
-  }
+  .log-entry .log-macros { color: var(--dim); text-align: right; font-size: 12px; }
 </style>
 </head>
 <body>
 
-<h1>Daily Tracker</h1>
+<div class="header">
+  <h1>Daily Tracker</h1>
+  <div class="date" id="headerDate"></div>
+  <button class="refresh-btn" onclick="refreshAll(this)" title="Refresh">&#8635;</button>
+</div>
 
 <div class="status-banner" id="statusBanner"></div>
 
@@ -349,85 +450,91 @@
       <span class="macro-label">Protein</span>
       <span><span class="macro-value" id="totalProtein">--</span><span class="macro-target"> / 180g</span></span>
     </div>
-    <div class="progress-bar"><div class="progress-fill" id="proteinBar" style="width:0%;background:var(--accent)"></div></div>
+    <div class="progress-bar"><div class="progress-fill progress-protein" id="proteinBar" style="width:0%"></div></div>
   </div>
   <div class="macro-row">
     <div class="macro-header">
       <span class="macro-label">Calories</span>
       <span><span class="macro-value" id="totalCalories">--</span><span class="macro-target"> / 2,300</span></span>
     </div>
-    <div class="progress-bar"><div class="progress-fill" id="calorieBar" style="width:0%;background:var(--orange)"></div></div>
+    <div class="progress-bar"><div class="progress-fill progress-calorie" id="calorieBar" style="width:0%"></div></div>
   </div>
   <div class="chips">
-    <div class="chip">Water: <span id="totalWater">0</span> oz</div>
-    <div class="chip">Coffee: <span id="totalCoffee">0</span></div>
-    <div class="chip">Coors: <span id="totalCoors">0</span></div>
-    <div class="chip">Bourbon: <span id="totalBourbon">0</span></div>
+    <div class="chip chip-water"><span>Water</span><span class="chip-value" id="totalWater">0</span></div>
+    <div class="chip chip-coffee"><span>Coffee</span><span class="chip-value" id="totalCoffee">0</span></div>
+    <div class="chip chip-coors"><span>Coors</span><span class="chip-value" id="totalCoors">0</span></div>
+    <div class="chip chip-bourbon"><span>Bourbon</span><span class="chip-value" id="totalBourbon">0</span></div>
   </div>
 </div>
 
 <!-- Quick Tap Liquid Buttons -->
+<h2>Quick Log</h2>
 <div class="quick-taps">
-  <button class="tap-btn tap-coffee" onclick="tapLiquid('coffee', this)">Coffee<span class="sub">+1 cup (75 cal)</span></button>
+  <button class="tap-btn tap-coffee" onclick="tapLiquid('coffee', this)">Coffee<span class="sub">+1 cup / 75 cal</span></button>
   <div class="water-group">
     <button class="tap-btn" onclick="tapLiquid('water', this, 12)">Water<span class="sub">12 oz</span></button>
     <button class="tap-btn" onclick="tapLiquid('water', this, 24)">Water<span class="sub">24 oz</span></button>
   </div>
-  <button class="tap-btn tap-coors" onclick="tapLiquid('coors', this)">Coors<span class="sub">+1 beer (102 cal)</span></button>
-  <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)">Bourbon<span class="sub">+1 pour (97 cal)</span></button>
+  <button class="tap-btn tap-coors" onclick="tapLiquid('coors', this)">Coors<span class="sub">+1 / 102 cal</span></button>
+  <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)">Bourbon<span class="sub">+1 / 97 cal</span></button>
 </div>
 
-<!-- Food Library -->
-<h2>Food Library</h2>
-<div id="foodList"><div style="color:var(--dim);text-align:center;padding:20px 0;font-size:14px;">Loading foods...</div></div>
-
-<button class="add-food-toggle" id="addFoodToggle" onclick="toggleAddFood()">+ Add New Food</button>
-
-<div class="add-food-form" id="addFoodForm">
-  <div class="form-row">
-    <div class="form-field full">
-      <label>Name / Description</label>
-      <input type="text" id="newFoodName" placeholder="e.g. Chicken & Asparagus">
+<!-- Food Library (collapsible) -->
+<h2>Food</h2>
+<button class="section-toggle" id="foodToggle" onclick="toggleSection('food')">
+  <span>My Food Library</span>
+  <span class="arrow">&#9660;</span>
+</button>
+<div class="section-content" id="foodSection">
+  <div id="foodList"><div style="color:var(--dim);text-align:center;padding:12px 0;font-size:14px;">Loading...</div></div>
+  <button class="add-food-toggle" onclick="toggleAddFood()">+ Add New Food</button>
+  <div class="add-food-form" id="addFoodForm">
+    <div class="form-row">
+      <div class="form-field full">
+        <label>Name / Description</label>
+        <input type="text" id="newFoodName" placeholder="e.g. Chicken & Asparagus">
+      </div>
     </div>
-  </div>
-  <div class="form-row">
-    <div class="form-field full">
-      <label>Serving Label</label>
-      <input type="text" id="newServingLabel" placeholder="e.g. 1 container" value="1 container">
+    <div class="form-row">
+      <div class="form-field full">
+        <label>Serving Label</label>
+        <input type="text" id="newServingLabel" placeholder="e.g. 1 container" value="1 container">
+      </div>
     </div>
-  </div>
-  <div class="form-row">
-    <div class="form-field">
-      <label>Containers / Servings</label>
-      <input type="number" id="newContainers" value="1" min="1">
+    <div class="form-row">
+      <div class="form-field">
+        <label>Containers / Servings</label>
+        <input type="number" id="newContainers" value="1" min="1">
+      </div>
     </div>
+    <div class="batch-toggle">
+      <button class="active" onclick="setBatchMode(false, this)">Per Serving</button>
+      <button onclick="setBatchMode(true, this)">Batch Total</button>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Protein (g)</label><input type="number" id="newProtein" inputmode="decimal"></div>
+      <div class="form-field"><label>Calories</label><input type="number" id="newCalories" inputmode="decimal"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Carbs (g)</label><input type="number" id="newCarbs" inputmode="decimal"></div>
+      <div class="form-field"><label>Fat (g)</label><input type="number" id="newFat" inputmode="decimal"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Sugar (g)</label><input type="number" id="newSugar" inputmode="decimal"></div>
+      <div class="form-field"><label>Sodium (mg)</label><input type="number" id="newSodium" inputmode="decimal"></div>
+    </div>
+    <button class="save-food-btn" onclick="saveNewFood()">Save to Library</button>
   </div>
-
-  <div class="batch-toggle">
-    <button class="active" onclick="setBatchMode(false, this)">Per Serving</button>
-    <button onclick="setBatchMode(true, this)">Batch Total</button>
-  </div>
-
-  <div class="form-row">
-    <div class="form-field"><label>Protein (g)</label><input type="number" id="newProtein" inputmode="decimal"></div>
-    <div class="form-field"><label>Calories</label><input type="number" id="newCalories" inputmode="decimal"></div>
-  </div>
-  <div class="form-row">
-    <div class="form-field"><label>Carbs (g)</label><input type="number" id="newCarbs" inputmode="decimal"></div>
-    <div class="form-field"><label>Fat (g)</label><input type="number" id="newFat" inputmode="decimal"></div>
-  </div>
-  <div class="form-row">
-    <div class="form-field"><label>Sugar (g)</label><input type="number" id="newSugar" inputmode="decimal"></div>
-    <div class="form-field"><label>Sodium (mg)</label><input type="number" id="newSodium" inputmode="decimal"></div>
-  </div>
-
-  <button class="save-food-btn" onclick="saveNewFood()">Save to Library</button>
 </div>
 
-<!-- Today's Log -->
-<h2>Today's Log</h2>
-<div class="log-section" id="todayLog">
-  <div style="color:var(--dim);text-align:center;padding:20px 0;font-size:14px;">Loading...</div>
+<!-- Today's Log (collapsible) -->
+<h2>Activity</h2>
+<button class="section-toggle open" id="logToggle" onclick="toggleSection('log')">
+  <span>Today's Log</span>
+  <span class="arrow" style="transform:rotate(180deg)">&#9660;</span>
+</button>
+<div class="section-content open" id="logSection">
+  <div id="todayLog"><div style="color:var(--dim);text-align:center;padding:12px 0;font-size:14px;">Loading...</div></div>
 </div>
 
 <script>
@@ -436,6 +543,11 @@ const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG8
 
 let foodsCache = [];
 let isBatchMode = false;
+
+// Set today's date in header
+document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', {
+  weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+});
 
 // ---- API Helpers ----
 async function apiGet(action) {
@@ -461,6 +573,14 @@ function showStatus(msg, type) {
   }
 }
 
+// ---- Collapsible Sections ----
+function toggleSection(name) {
+  const toggle = document.getElementById(name + 'Toggle');
+  const content = document.getElementById(name + 'Section');
+  toggle.classList.toggle('open');
+  content.classList.toggle('open');
+}
+
 // ---- Load Data on Start ----
 async function loadAll() {
   try {
@@ -476,14 +596,13 @@ async function loadAll() {
     renderLog(log);
     document.getElementById('statusBanner').className = 'status-banner';
   } catch (err) {
-    showStatus('Failed to connect to Sheet. Check your internet.', 'error');
+    showStatus('Failed to connect. Check your internet.', 'error');
     console.error(err);
   }
 }
 
 // ---- Quick Tap Liquids ----
 async function tapLiquid(type, btn, amount) {
-  // Flash immediately
   btn.classList.remove('flash');
   void btn.offsetWidth;
   btn.classList.add('flash');
@@ -574,7 +693,6 @@ async function saveNewFood() {
     if (result.success) {
       foodsCache.push(result.food);
       renderFoods(foodsCache);
-      // Reset form
       document.getElementById('newFoodName').value = '';
       document.getElementById('newProtein').value = '';
       document.getElementById('newCalories').value = '';
@@ -613,9 +731,9 @@ async function refreshTotalsAndLog() {
 
 // ---- Rendering ----
 function renderTotals(t) {
-  document.getElementById('totalProtein').textContent = t.protein;
-  document.getElementById('totalCalories').textContent = t.calories;
-  document.getElementById('totalWater').textContent = t.waterOz;
+  document.getElementById('totalProtein').textContent = t.protein + 'g';
+  document.getElementById('totalCalories').textContent = t.calories.toLocaleString();
+  document.getElementById('totalWater').textContent = t.waterOz + ' oz';
   document.getElementById('totalCoffee').textContent = t.coffeeCount;
   document.getElementById('totalCoors').textContent = t.coorsCount;
   document.getElementById('totalBourbon').textContent = t.bourbonCount;
@@ -625,17 +743,18 @@ function renderTotals(t) {
   document.getElementById('proteinBar').style.width = pPct + '%';
   document.getElementById('calorieBar').style.width = cPct + '%';
 
-  document.getElementById('calorieBar').style.background = t.calories > 2300 ? 'var(--red)' : 'var(--orange)';
-  document.getElementById('proteinBar').style.background = t.protein >= 180 ? 'var(--green)' : 'var(--accent)';
+  const pBar = document.getElementById('proteinBar');
+  const cBar = document.getElementById('calorieBar');
+  pBar.className = 'progress-fill progress-protein' + (t.protein >= 180 ? ' hit' : '');
+  cBar.className = 'progress-fill progress-calorie' + (t.calories > 2300 ? ' over' : '');
 }
 
 function renderFoods(foods) {
   const container = document.getElementById('foodList');
   if (!foods.length) {
-    container.innerHTML = '<div style="color:var(--dim);text-align:center;padding:20px 0;font-size:14px;">No foods in library yet.</div>';
+    container.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px 0;font-size:14px;">No foods yet.</div>';
     return;
   }
-  // Filter out coffee from food list since it has its own button
   const filtered = foods.filter(f => f.id !== 'f006');
   container.innerHTML = filtered.map(f => `
     <div class="food-card">
@@ -643,7 +762,7 @@ function renderFoods(foods) {
         <span class="food-name">${f.name}</span>
         <span class="food-serving">${f.servingLabel}</span>
       </div>
-      <div class="food-macros">${f.protein}p / ${f.calories}cal / ${f.carbs}c / ${f.fat}f per serving</div>
+      <div class="food-macros">${f.protein}p / ${f.calories}cal / ${f.carbs}c / ${f.fat}f</div>
       <div class="food-actions">
         <button class="serving-btn" onclick="adjustServing('${f.id}',-1)">-</button>
         <span class="serving-count" id="srv-${f.id}">1</span>
@@ -658,7 +777,7 @@ function renderLog(entries) {
   const container = document.getElementById('todayLog');
 
   if (!entries || entries.length === 0) {
-    container.innerHTML = '<div style="color:var(--dim);text-align:center;padding:20px 0;font-size:14px;">Nothing logged yet today.</div>';
+    container.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px 0;font-size:14px;">Nothing logged yet today.</div>';
     return;
   }
 
@@ -671,6 +790,16 @@ function renderLog(entries) {
       <span class="log-macros">${macros}</span>
     </div>`;
   }).join('');
+}
+
+// ---- Refresh ----
+async function refreshAll(btn) {
+  if (btn) {
+    btn.classList.remove('spinning');
+    void btn.offsetWidth;
+    btn.classList.add('spinning');
+  }
+  await loadAll();
 }
 
 // ---- Init ----
