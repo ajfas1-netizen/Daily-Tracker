@@ -15,10 +15,13 @@ function doGet(e) {
       result = getFoods();
       break;
     case 'getToday':
-      result = getToday();
+      result = getToday(e.parameter.date);
       break;
     case 'getTodayLog':
-      result = getTodayLog();
+      result = getTodayLog(e.parameter.date);
+      break;
+    case 'getDaySummary':
+      result = getDaySummary(e.parameter.date);
       break;
     case 'getWeightHistory':
       result = getWeightHistory();
@@ -216,8 +219,8 @@ function logLiquid(body) {
 }
 
 // ---- getToday ----
-function getToday() {
-  const date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+function getToday(dateParam) {
+  const date = dateParam || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   const sheet = getSheet('Log');
   const data = sheet.getDataRange().getValues();
 
@@ -246,8 +249,8 @@ function getToday() {
 }
 
 // ---- getTodayLog ----
-function getTodayLog() {
-  const date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+function getTodayLog(dateParam) {
+  const date = dateParam || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   const sheet = getSheet('Log');
   const data = sheet.getDataRange().getValues();
   const entries = [];
@@ -338,6 +341,14 @@ function rebuildDailySummary(date) {
   } else {
     summarySheet.appendRow(rowData);
   }
+}
+
+// ---- getDaySummary ----
+function getDaySummary(dateParam) {
+  const date = dateParam || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const totals = getToday(date);
+  const log = getTodayLog(date);
+  return { totals: totals, log: log };
 }
 
 // ---- getYesterday ----

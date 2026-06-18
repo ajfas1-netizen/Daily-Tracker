@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Grind</title>
-<!-- v9 -->
+<!-- v10 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="The Grind">
@@ -203,6 +203,41 @@
   .workout-chip .workout-status { font-weight: 700; }
   .workout-chip .workout-status.done { color: var(--green); }
   .workout-chip .workout-status.rest { color: var(--dim); }
+
+  /* --- Day Navigation --- */
+  .day-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .day-nav-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--dim);
+    font-size: 18px;
+    width: 40px;
+    height: 36px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .day-nav-btn:active { color: var(--accent); border-color: var(--accent); }
+  .day-nav-btn:disabled { opacity: 0.2; }
+  .day-nav-date {
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .day-nav-sub {
+    font-size: 11px;
+    color: var(--dim);
+    font-weight: 400;
+  }
+  .totals { transition: opacity 0.2s; }
+  .totals.loading-day { opacity: 0.4; }
 
   /* --- Section Headers --- */
   h2 {
@@ -602,8 +637,16 @@
   <div id="feedbackContent"></div>
 </div>
 
-<!-- Daily Totals -->
-<div class="totals">
+<!-- Day Navigation + Totals -->
+<div class="day-nav">
+  <button class="day-nav-btn" id="prevDay" onclick="changeDay(-1)">&#8249;</button>
+  <div>
+    <div class="day-nav-date" id="dayNavDate">Today</div>
+    <div class="day-nav-sub" id="dayNavSub"></div>
+  </div>
+  <button class="day-nav-btn" id="nextDay" onclick="changeDay(1)" disabled>&#8250;</button>
+</div>
+<div class="totals" id="totalsCard">
   <div class="macro-row">
     <div class="macro-header">
       <span class="macro-label">Protein</span>
@@ -1123,8 +1166,74 @@ function renderWeightStats(history) {
     <div class="weight-stat"><div class="stat-label">7-Day</div><div class="stat-value ${wc2}">${weekChange}</div></div>`;
 }
 
+// ---- Day Navigation ----
+let viewDate = new Date();
+let viewOffset = 0;
+
+function todayStr() { return new Date().toLocaleDateString('en-CA'); }
+
+function getViewDateStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + viewOffset);
+  return d.toLocaleDateString('en-CA');
+}
+
+function updateDayNav() {
+  const dateStr = getViewDateStr();
+  const d = new Date();
+  d.setDate(d.getDate() + viewOffset);
+
+  if (viewOffset === 0) {
+    document.getElementById('dayNavDate').textContent = 'Today';
+  } else if (viewOffset === -1) {
+    document.getElementById('dayNavDate').textContent = 'Yesterday';
+  } else {
+    document.getElementById('dayNavDate').textContent = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  document.getElementById('dayNavSub').textContent = dateStr;
+  document.getElementById('nextDay').disabled = (viewOffset >= 0);
+}
+
+async function changeDay(delta) {
+  viewOffset += delta;
+  updateDayNav();
+
+  const card = document.getElementById('totalsCard');
+  card.classList.add('loading-day');
+
+  try {
+    const dateStr = getViewDateStr();
+    const data = await apiGet('getDaySummary&date=' + dateStr);
+    renderTotals(data.totals);
+    renderLog(data.log);
+  } catch (err) {
+    console.error('Day load failed:', err);
+  } finally {
+    card.classList.remove('loading-day');
+  }
+}
+
+// Swipe detection on totals card
+(function() {
+  let startX = 0, startY = 0;
+  const el = document.querySelector('.totals');
+  el.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+  el.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx > 0) changeDay(-1); // swipe right = previous day
+      else if (viewOffset < 0) changeDay(1); // swipe left = next day
+    }
+  }, { passive: true });
+})();
+
 // ---- Init ----
 updateTargetLabels();
+updateDayNav();
 loadAll();
 </script>
 </body>
