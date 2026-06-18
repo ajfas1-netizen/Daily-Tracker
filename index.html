@@ -4,26 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Daily Tracker</title>
-<!-- v2 -->
+<!-- v3 -->
 <style>
   :root {
-    --bg: #0a0a0f;
-    --card: #141420;
-    --card2: #1a1a2e;
-    --border: #252540;
-    --text: #eee;
-    --dim: #777;
-    --accent: #6c5ce7;
-    --accent-glow: rgba(108,92,231,0.3);
-    --green: #00b894;
-    --green-glow: rgba(0,184,148,0.3);
-    --orange: #fdcb6e;
-    --red: #ff6b6b;
-    --coffee-bg: linear-gradient(135deg, #5d4037, #795548);
-    --water-bg: linear-gradient(135deg, #0984e3, #74b9ff);
-    --coors-bg: linear-gradient(135deg, #f9a825, #fdd835);
+    --bg: #0b1120;
+    --card: #111a2e;
+    --card2: #162036;
+    --border: #1e2d4a;
+    --text: #e4e8f1;
+    --dim: #6b7a99;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59,130,246,0.25);
+    --green: #22c55e;
+    --green-glow: rgba(34,197,94,0.25);
+    --orange: #f59e0b;
+    --red: #ef4444;
+    --coffee-bg: linear-gradient(135deg, #5d4037, #8d6e63);
+    --water-bg: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    --coors-bg: linear-gradient(135deg, #d97706, #f59e0b);
     --coors-text: #1a1a1a;
-    --bourbon-bg: linear-gradient(135deg, #d35400, #e67e22);
+    --bourbon-bg: linear-gradient(135deg, #b91c1c, #dc2626);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -48,7 +48,7 @@
   .header h1 {
     font-size: 22px;
     font-weight: 800;
-    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    background: linear-gradient(135deg, #3b82f6, #60a5fa);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     letter-spacing: 0.5px;
@@ -127,10 +127,10 @@
     border-radius: 5px;
     transition: width 0.4s ease;
   }
-  .progress-protein { background: linear-gradient(90deg, #6c5ce7, #a29bfe); box-shadow: 0 0 12px var(--accent-glow); }
-  .progress-protein.hit { background: linear-gradient(90deg, #00b894, #55efc4); box-shadow: 0 0 12px var(--green-glow); }
-  .progress-calorie { background: linear-gradient(90deg, #fdcb6e, #ffeaa7); }
-  .progress-calorie.over { background: linear-gradient(90deg, #ff6b6b, #fab1a0); }
+  .progress-protein { background: linear-gradient(90deg, #2563eb, #60a5fa); box-shadow: 0 0 12px var(--accent-glow); }
+  .progress-protein.hit { background: linear-gradient(90deg, #16a34a, #4ade80); box-shadow: 0 0 12px var(--green-glow); }
+  .progress-calorie { background: linear-gradient(90deg, #d97706, #fbbf24); }
+  .progress-calorie.over { background: linear-gradient(90deg, #dc2626, #f87171); }
 
   .chips {
     display: grid;
@@ -151,10 +151,10 @@
     align-items: center;
   }
   .chip-value { font-size: 18px; font-weight: 800; }
-  .chip-water .chip-value { color: #74b9ff; }
-  .chip-coffee .chip-value { color: #dfe6e9; }
-  .chip-coors .chip-value { color: #ffeaa7; }
-  .chip-bourbon .chip-value { color: #fab1a0; }
+  .chip-water .chip-value { color: #60a5fa; }
+  .chip-coffee .chip-value { color: #a8a29e; }
+  .chip-coors .chip-value { color: #fbbf24; }
+  .chip-bourbon .chip-value { color: #f87171; }
 
   /* --- Section Headers --- */
   h2 {
@@ -405,7 +405,7 @@
 
   .save-food-btn {
     width: 100%;
-    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
     color: #fff;
     border: none;
     border-radius: 10px;
@@ -530,11 +530,11 @@
 
 <!-- Today's Log (collapsible) -->
 <h2>Activity</h2>
-<button class="section-toggle open" id="logToggle" onclick="toggleSection('log')">
+<button class="section-toggle" id="logToggle" onclick="toggleSection('log')">
   <span>Today's Log</span>
-  <span class="arrow" style="transform:rotate(180deg)">&#9660;</span>
+  <span class="arrow">&#9660;</span>
 </button>
-<div class="section-content open" id="logSection">
+<div class="section-content" id="logSection">
   <div id="todayLog"><div style="color:var(--dim);text-align:center;padding:12px 0;font-size:14px;">Loading...</div></div>
 </div>
 
