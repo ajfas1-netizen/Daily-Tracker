@@ -1115,7 +1115,9 @@ async function saveWeight() {
   try {
     const result = await apiPost({ action: 'logBodyweight', weight: weight });
     if (result.success) {
-      showStatus('Logged ' + weight + ' lbs', 'success');
+      const badge = document.getElementById('weightToday');
+      badge.textContent = weight + ' lbs saved';
+      setTimeout(() => { badge.textContent = ''; }, 2000);
       await loadWeightData();
     }
   } catch (err) { showStatus('Failed to log weight', 'error'); }
@@ -1136,7 +1138,7 @@ async function loadWeightData() {
     if (todayEntry) {
       strip.classList.remove('unlogged');
       label.textContent = 'Update weight';
-      badge.textContent = todayEntry.weight + ' lbs today';
+      badge.textContent = '';
       document.getElementById('weightInput').value = todayEntry.weight;
     } else {
       strip.classList.add('unlogged');
