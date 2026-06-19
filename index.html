@@ -489,15 +489,6 @@
   <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)">Bourbon<span class="sub">+1 &middot; 97 cal</span></button>
 </div>
 
-<!-- Today's Log -->
-<h2>Activity</h2>
-<button class="section-toggle" id="logToggle" onclick="toggleSection('log')">
-  <span>Today's Log</span>
-  <span class="arrow">&#9660;</span>
-</button>
-<div class="section-content" id="logSection">
-  <div id="todayLog"><div style="color:var(--dim);text-align:center;padding:12px 0;font-size:13px;">Nothing logged yet today.</div></div>
-</div>
 
 <!-- Fixed Bottom Navigation (2×3) -->
 <nav class="bottom-nav">
@@ -594,7 +585,6 @@ async function loadAll() {
     showStatus('Loading...', 'loading');
     const data = await apiGet('getHomeData');
     renderTotals(data.daySummary.totals);
-    renderLog(data.daySummary.log);
     renderNextWorkout(data.nextWorkoutDay, data.daySummary.totals.workoutDone);
     loadWeightData();
     document.getElementById('statusBanner').className = 'status-banner';
@@ -678,7 +668,6 @@ async function refreshTotalsAndLog() {
     const dateParam = viewOffset !== 0 ? '&date=' + getViewDateStr() : '';
     const summary = await apiGet('getDaySummary' + dateParam);
     renderTotals(summary.totals);
-    renderLog(summary.log);
   } catch (err) { console.error('Refresh failed:', err); }
 }
 
@@ -803,7 +792,6 @@ async function changeDay(delta) {
   try {
     const summary = await apiGet('getDaySummary&date=' + getViewDateStr());
     renderTotals(summary.totals);
-    renderLog(summary.log);
   } catch (err) { console.error('Day load failed:', err); }
   finally { card.classList.remove('loading-day'); }
 }
