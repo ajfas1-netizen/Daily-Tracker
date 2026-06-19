@@ -211,6 +211,7 @@
   }
   .tap-btn:active { transform: scale(0.96); }
   .tap-btn:disabled { opacity: 0.5; }
+  .tap-icon { display: block; font-size: 26px; margin-bottom: 4px; line-height: 1; }
   .tap-btn .sub { display: block; font-size: 10px; font-weight: 400; margin-top: 2px; opacity: 0.7; }
   .tap-coffee  { background: var(--coffee-bg); }
   .tap-coors   { background: var(--coors-bg); color: var(--coors-text); }
@@ -480,13 +481,13 @@
 <!-- Quick Log -->
 <h2>Quick Log</h2>
 <div class="quick-taps">
-  <button class="tap-btn tap-coffee" onclick="tapLiquid('coffee', this)">Coffee<span class="sub">+1 cup &middot; 75 cal</span></button>
+  <button class="tap-btn tap-coffee" onclick="tapLiquid('coffee', this)"><span class="tap-icon">☕</span><span class="sub">75 cal</span></button>
   <div class="water-group">
-    <button class="tap-btn" onclick="tapLiquid('water', this, 12)">Water<span class="sub">12 oz</span></button>
-    <button class="tap-btn" onclick="tapLiquid('water', this, 24)">Water<span class="sub">24 oz</span></button>
+    <button class="tap-btn" onclick="tapLiquid('water', this, 12)"><span class="tap-icon">💧</span><span class="sub">12 oz</span></button>
+    <button class="tap-btn" onclick="tapLiquid('water', this, 24)"><span class="tap-icon">💧💧</span><span class="sub">24 oz</span></button>
   </div>
-  <button class="tap-btn tap-coors" onclick="tapLiquid('coors', this)">Coors<span class="sub">+1 &middot; 102 cal</span></button>
-  <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)">Bourbon<span class="sub">+1 &middot; 97 cal</span></button>
+  <button class="tap-btn tap-coors" onclick="tapLiquid('coors', this)"><span class="tap-icon">🍺</span><span class="sub">102 cal</span></button>
+  <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)"><span class="tap-icon">🥃</span><span class="sub">97 cal</span></button>
 </div>
 
 
