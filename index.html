@@ -301,40 +301,21 @@
   .save-food-btn:active { transform: scale(0.97); }
 
   /* ---- Today's Log ---- */
-  .log-entry {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px;
+  .log-item-card {
+    background: var(--card2); border: 1px solid var(--border); border-left-width: 3px;
+    border-radius: 10px; padding: 9px 11px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
   }
-  .log-entry:last-child { border-bottom: none; }
-  .log-entry .log-time  { color: var(--dim); font-size: 11px; width: 52px; flex-shrink: 0; }
-  .log-entry .log-item  { flex: 1; font-size: 12px; }
-  .log-entry .log-macros { color: var(--dim); text-align: right; font-size: 11px; }
+  .log-item-card:last-child { margin-bottom: 0; }
+  .log-item-icon { font-size: 17px; flex-shrink: 0; width: 24px; text-align: center; line-height: 1; }
+  .log-item-body { flex: 1; min-width: 0; }
+  .log-item-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log-item-meta { display: flex; gap: 5px; margin-top: 4px; }
+  .log-pill { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
+  .log-pill.protein  { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .log-pill.calories { background: rgba(245,158,11,0.15);  color: #fbbf24; }
+  .log-item-time { font-size: 10px; color: var(--dim); flex-shrink: 0; align-self: flex-start; padding-top: 1px; }
 
-  /* ---- Weight Chart ---- */
-  .weight-chart { width: 100%; height: 130px; display: block; margin-bottom: 4px; }
-  .weight-stats { display: flex; justify-content: space-around; padding: 10px 0 4px; border-top: 1px solid var(--border); }
-  .weight-stat { text-align: center; }
-  .weight-stat .stat-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
-  .weight-stat .stat-value { font-size: 16px; font-weight: 800; margin-top: 2px; }
-  .weight-stat .stat-value.down { color: var(--green); }
-  .weight-stat .stat-value.up   { color: var(--red); }
-  .weight-stat .stat-value.neutral { color: var(--dim); }
-  .trends-weight-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin: 0 0 9px; }
-  .trends-divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
-
-  /* ---- Trends ---- */
-  .trends-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-  .trend-stat { background: var(--card2); border: 1px solid var(--border); border-radius: 11px; padding: 10px 12px; }
-  .trend-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
-  .trend-value { font-size: 21px; font-weight: 800; }
-  .trend-sub { font-size: 10px; color: var(--dim); margin-top: 2px; }
-  .trend-value.hit  { color: var(--green); }
-  .trend-value.miss { color: var(--red); }
-  .trend-value.warn { color: var(--orange); }
-  .trend-mini-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 7px; overflow: hidden; }
-  .trend-mini-fill { height: 100%; border-radius: 2px; background: var(--accent); }
-  .trend-mini-fill.hit  { background: var(--green); }
-  .trend-mini-fill.over { background: var(--red); }
 
   /* ---- Settings ---- */
   .settings-overlay {
@@ -586,20 +567,6 @@
   </div>
 </div>
 
-<!-- Trends -->
-<h2>Trends</h2>
-<button class="section-toggle" id="trendsToggle" onclick="toggleSection('trends')">
-  <span>7-Day Overview</span>
-  <span class="arrow">&#9660;</span>
-</button>
-<div class="section-content" id="trendsSection">
-  <p class="trends-weight-header">Weight</p>
-  <canvas class="weight-chart" id="weightChart"></canvas>
-  <div class="weight-stats" id="weightStats"></div>
-  <hr class="trends-divider">
-  <div id="trendsList"><div style="color:var(--dim);text-align:center;padding:12px 0;font-size:13px;">Loading...</div></div>
-</div>
-
 <!-- Today's Log -->
 <h2>Activity</h2>
 <button class="section-toggle" id="logToggle" onclick="toggleSection('log')">
@@ -704,7 +671,6 @@ async function loadAll() {
     renderLog(summary.log);
     renderFeedback(yesterday);
     loadWeightData();
-    loadTrendsData();
     document.getElementById('statusBanner').className = 'status-banner';
   } catch (err) {
     showStatus('Failed to connect. Check your internet.', 'error');
@@ -914,13 +880,30 @@ function renderFoods(foods) {
 function renderLog(entries) {
   const container = document.getElementById('todayLog');
   if (!entries || !entries.length) {
-    container.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px 0;font-size:13px;">Nothing logged yet today.</div>';
+    container.innerHTML = '<div style="color:var(--dim);text-align:center;padding:16px 0;font-size:13px;">Nothing logged yet today.</div>';
     return;
   }
   container.innerHTML = entries.slice().reverse().map(e => {
-    const time   = new Date(e.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const macros = e.calories ? e.protein + 'p / ' + e.calories + 'cal' : '';
-    return `<div class="log-entry"><span class="log-time">${time}</span><span class="log-item">${e.item}</span><span class="log-macros">${macros}</span></div>`;
+    const time = new Date(e.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const n = e.item.toLowerCase();
+    let icon = '🍽️', borderColor = 'var(--border)';
+    if (n.includes('coffee'))  { icon = '☕'; borderColor = '#a8a29e'; }
+    else if (n.includes('water'))   { icon = '💧'; borderColor = 'var(--accent)'; }
+    else if (n.includes('coors') || n.includes('beer'))    { icon = '🍺'; borderColor = '#fbbf24'; }
+    else if (n.includes('bourbon') || n.includes('whiskey')) { icon = '🥃'; borderColor = '#f87171'; }
+    else if (e.protein >= 35)  { icon = '🥩'; borderColor = 'var(--green)'; }
+    else if (e.protein > 0)    { icon = '🍗'; borderColor = 'var(--green)'; }
+    const proteinPill  = e.protein  > 0 ? `<span class="log-pill protein">${e.protein}p</span>` : '';
+    const calsPill     = e.calories > 0 ? `<span class="log-pill calories">${e.calories} cal</span>` : '';
+    return `
+      <div class="log-item-card" style="border-left-color:${borderColor}">
+        <div class="log-item-icon">${icon}</div>
+        <div class="log-item-body">
+          <div class="log-item-name">${e.item}</div>
+          <div class="log-item-meta">${proteinPill}${calsPill}</div>
+        </div>
+        <div class="log-item-time">${time}</div>
+      </div>`;
   }).join('');
 }
 
@@ -945,8 +928,6 @@ async function saveWeight() {
 async function loadWeightData() {
   try {
     const history = await apiGet('getWeightHistory');
-    renderWeightChart(history);
-    renderWeightStats(history);
     const todayStr   = new Date().toLocaleDateString('en-CA');
     const todayEntry = history.find(h => h.date === todayStr);
     const strip  = document.getElementById('weightStrip');
@@ -962,180 +943,6 @@ async function loadWeightData() {
     }
     document.getElementById('weightToday').textContent = '';
   } catch (err) { console.error('Weight load failed:', err); }
-}
-
-function renderWeightChart(history) {
-  const canvas = document.getElementById('weightChart');
-  const ctx    = canvas.getContext('2d');
-  const dpr    = window.devicePixelRatio || 1;
-  const rect   = canvas.getBoundingClientRect();
-  canvas.width  = rect.width  * dpr;
-  canvas.height = rect.height * dpr;
-  ctx.scale(dpr, dpr);
-  const W = rect.width, H = rect.height;
-  ctx.clearRect(0, 0, W, H);
-
-  if (history.length < 2) {
-    ctx.fillStyle = '#6b7a99';
-    ctx.font = '13px -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(history.length === 0 ? 'Log your weight to see the trend' : history[0].weight + ' lbs — more data coming', W / 2, H / 2);
-    return;
-  }
-
-  const pad = { top: 16, right: 14, bottom: 26, left: 40 };
-  const cW  = W - pad.left - pad.right;
-  const cH  = H - pad.top  - pad.bottom;
-  const weights = history.map(h => h.weight);
-  const minW    = Math.floor(Math.min(...weights) - 2);
-  const maxW    = Math.ceil(Math.max(...weights)  + 2);
-  const range   = maxW - minW || 1;
-  const xi = i => pad.left + (i / (history.length - 1)) * cW;
-  const yw = w => pad.top  + cH - ((w - minW) / range) * cH;
-
-  ctx.strokeStyle = '#1e2d4a'; ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const val  = minW + (range * i / 4);
-    const yPos = yw(val);
-    ctx.beginPath(); ctx.moveTo(pad.left, yPos); ctx.lineTo(W - pad.right, yPos); ctx.stroke();
-    ctx.fillStyle = '#6b7a99'; ctx.font = '10px -apple-system, sans-serif'; ctx.textAlign = 'right';
-    ctx.fillText(Math.round(val), pad.left - 5, yPos + 3);
-  }
-
-  const lc = Math.min(history.length, 5);
-  ctx.fillStyle = '#6b7a99'; ctx.font = '9px -apple-system, sans-serif'; ctx.textAlign = 'center';
-  for (let i = 0; i < lc; i++) {
-    const idx = Math.round(i * (history.length - 1) / (lc - 1));
-    ctx.fillText(history[idx].date.slice(5), xi(idx), H - 4);
-  }
-
-  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
-  grad.addColorStop(0, 'rgba(59,130,246,0.28)');
-  grad.addColorStop(1, 'rgba(59,130,246,0)');
-  ctx.beginPath(); ctx.moveTo(xi(0), yw(history[0].weight));
-  for (let i = 1; i < history.length; i++) ctx.lineTo(xi(i), yw(history[i].weight));
-  ctx.lineTo(xi(history.length - 1), pad.top + cH);
-  ctx.lineTo(xi(0), pad.top + cH);
-  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
-
-  ctx.beginPath(); ctx.moveTo(xi(0), yw(history[0].weight));
-  for (let i = 1; i < history.length; i++) ctx.lineTo(xi(i), yw(history[i].weight));
-  ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
-
-  history.forEach((h, i) => {
-    ctx.beginPath(); ctx.arc(xi(i), yw(h.weight), 3, 0, Math.PI * 2);
-    ctx.fillStyle = '#3b82f6'; ctx.fill();
-    ctx.strokeStyle = '#0b1120'; ctx.lineWidth = 1.5; ctx.stroke();
-  });
-  const last = history.length - 1;
-  ctx.beginPath(); ctx.arc(xi(last), yw(history[last].weight), 5, 0, Math.PI * 2);
-  ctx.fillStyle = '#60a5fa'; ctx.fill(); ctx.strokeStyle = '#0b1120'; ctx.lineWidth = 1.5; ctx.stroke();
-}
-
-function renderWeightStats(history) {
-  const container = document.getElementById('weightStats');
-  if (!history.length) { container.innerHTML = ''; return; }
-  const start   = history[0].weight;
-  const current = history[history.length - 1].weight;
-  const change  = current - start;
-  const cc      = change < 0 ? 'down' : change > 0 ? 'up' : 'neutral';
-  let weekChange = '--', wc2 = 'neutral';
-  if (history.length >= 2) {
-    const d = new Date(); d.setDate(d.getDate() - 7);
-    const ws = d.toLocaleDateString('en-CA');
-    const we = history.find(h => h.date <= ws) || history[0];
-    const wc = current - we.weight;
-    wc2 = wc < 0 ? 'down' : wc > 0 ? 'up' : 'neutral';
-    weekChange = (wc > 0 ? '+' : '') + wc.toFixed(1);
-  }
-  container.innerHTML = `
-    <div class="weight-stat"><div class="stat-label">Start</div><div class="stat-value neutral">${start}</div></div>
-    <div class="weight-stat"><div class="stat-label">Current</div><div class="stat-value">${current}</div></div>
-    <div class="weight-stat"><div class="stat-label">Total</div><div class="stat-value ${cc}">${change > 0 ? '+' : ''}${change.toFixed(1)}</div></div>
-    <div class="weight-stat"><div class="stat-label">7-Day</div><div class="stat-value ${wc2}">${weekChange}</div></div>`;
-}
-
-// ---- Trends ----
-async function loadTrendsData() {
-  try {
-    const history = await apiGet('getSummaryHistory');
-    renderTrends(history);
-  } catch (err) { console.error('Trends load failed:', err); }
-}
-
-function renderTrends(history) {
-  const container = document.getElementById('trendsList');
-  if (!history.length) {
-    container.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px 0;font-size:13px;">No history yet. Keep logging!</div>';
-    return;
-  }
-  const today = new Date().toLocaleDateString('en-CA');
-  const past  = history.filter(h => h.date < today).slice(-7);
-  const n     = past.length;
-  if (n === 0) {
-    container.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px 0;font-size:13px;">Complete a full day to see trends.</div>';
-    return;
-  }
-  const avgProtein  = Math.round(past.reduce((s, h) => s + h.protein, 0) / n);
-  const avgCalories = Math.round(past.reduce((s, h) => s + h.calories, 0) / n);
-  const avgWater    = Math.round(past.reduce((s, h) => s + h.waterOz, 0) / n);
-  const proteinHits = past.filter(h => h.protein >= targets.protein).length;
-  const hitRatePct  = Math.round((proteinHits / n) * 100);
-  let streak = 0;
-  for (const h of [...past].reverse()) { if (h.protein >= targets.protein) streak++; else break; }
-  const totalDrinks = past.reduce((s, h) => s + h.coorsCount + h.bourbonCount, 0);
-  const drinkCals   = past.reduce((s, h) => s + (h.coorsCount * 102) + (h.bourbonCount * 97), 0);
-  const workoutDays = past.filter(h => h.workoutDone === 'Yes').length;
-  const label = n < 7 ? n + '-day avg' : '7-day avg';
-
-  const pClr  = avgProtein  >= targets.protein              ? 'hit' : avgProtein  >= targets.protein  * 0.8 ? 'warn' : 'miss';
-  const cClr  = avgCalories <= targets.calories             ? 'hit' : avgCalories <= targets.calories * 1.1 ? 'warn' : 'miss';
-  const hClr  = hitRatePct  >= 80 ? 'hit' : hitRatePct  >= 50 ? 'warn' : 'miss';
-  const sClr  = streak      >= 3  ? 'hit' : streak      >= 1  ? 'warn' : 'miss';
-  const wClr  = avgWater    >= targets.water ? 'hit' : avgWater >= targets.water * 0.75 ? 'warn' : 'miss';
-  const dClr  = totalDrinks === 0 ? 'hit' : totalDrinks <= n ? 'warn' : 'miss';
-  const woClr = workoutDays >= Math.ceil(n * 0.6) ? 'hit' : workoutDays > 0 ? 'warn' : 'miss';
-
-  container.innerHTML = `
-    <div class="trends-grid">
-      <div class="trend-stat">
-        <div class="trend-label">Protein ${label}</div>
-        <div class="trend-value ${pClr}">${avgProtein}g</div>
-        <div class="trend-sub">Goal: ${targets.protein}g</div>
-        <div class="trend-mini-bar"><div class="trend-mini-fill ${avgProtein >= targets.protein ? 'hit' : ''}" style="width:${Math.min(100,(avgProtein/targets.protein)*100)}%"></div></div>
-      </div>
-      <div class="trend-stat">
-        <div class="trend-label">Calorie ${label}</div>
-        <div class="trend-value ${cClr}">${avgCalories.toLocaleString()}</div>
-        <div class="trend-sub">Target: ${targets.calories.toLocaleString()}</div>
-        <div class="trend-mini-bar"><div class="trend-mini-fill ${avgCalories > targets.calories ? 'over' : 'hit'}" style="width:${Math.min(100,(avgCalories/targets.calories)*100)}%"></div></div>
-      </div>
-      <div class="trend-stat">
-        <div class="trend-label">Protein Hit Rate</div>
-        <div class="trend-value ${hClr}">${proteinHits}/${n}</div>
-        <div class="trend-sub">${hitRatePct}% on target</div>
-      </div>
-      <div class="trend-stat">
-        <div class="trend-label">Current Streak</div>
-        <div class="trend-value ${sClr}">${streak}d</div>
-        <div class="trend-sub">${streak > 0 ? 'Consecutive protein days' : 'Hit goal to start'}</div>
-      </div>
-      <div class="trend-stat">
-        <div class="trend-label">Avg Water</div>
-        <div class="trend-value ${wClr}">${avgWater} oz</div>
-        <div class="trend-sub">Target: ${targets.water} oz</div>
-      </div>
-      <div class="trend-stat">
-        <div class="trend-label">Drinks (${n}d)</div>
-        <div class="trend-value ${dClr}">${totalDrinks}</div>
-        <div class="trend-sub">${drinkCals} empty cal</div>
-      </div>
-      <div class="trend-stat">
-        <div class="trend-label">Workouts (${n}d)</div>
-        <div class="trend-value ${woClr}">${workoutDays}</div>
-        <div class="trend-sub">of ${n} days tracked</div>
-      </div>
-    </div>`;
 }
 
 // ---- Navigation ----
