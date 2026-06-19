@@ -537,6 +537,20 @@ function buildRecipe(body) {
   const portions = parseInt(body.portions) || 1;
   let text = body.text || '';
 
+  if (mode === 'cook') {
+    // Treat home-cooked descriptions the same as paste — AI estimates from description
+    if (!text) return { error: 'Describe what you cooked' };
+    const result = callClaude(text, 'cook', portions);
+    if (result.error) return result;
+    if (!result.servingLabel) {
+      result.servingLabel = portions > 1 ? '1 of ' + portions + ' containers' : '1 serving';
+    }
+    if (body.name && body.name.trim() && (!result.name || result.name.length < 3)) {
+      result.name = body.name.trim();
+    }
+    return result;
+  }
+
   if (mode === 'url') {
     const url = body.url;
     if (!url) return { error: 'URL required' };
@@ -588,6 +602,13 @@ function callClaude(text, mode, portions) {
       'Return ONLY a valid JSON object with exactly these fields (numbers only, no units in values):\n' +
       '{"name":"meal name","protein":0,"calories":0,"carbs":0,"fat":0,"sugar":0,"sodium":0,' +
       '"confidence":"high|medium|low","notes":"brief explanation"}';
+  } else if (mode === 'cook') {
+    prompt = 'I cooked this meal at home:\n\n"' + text + '"\n\n' +
+      'This was split into ' + portions + ' portion' + (portions !== 1 ? 's' : '') + '. ' +
+      'Estimate realistic nutrition macros PER PORTION based on the ingredients described.\n\n' +
+      'Return ONLY a valid JSON object with exactly these fields (numbers only, no units in values):\n' +
+      '{"name":"meal name","protein":0,"calories":0,"carbs":0,"fat":0,"sugar":0,"sodium":0,' +
+      '"confidence":"high|medium|low","notes":"brief explanation of your estimates"}';
   } else {
     prompt = 'Here is a recipe' + (mode === 'url' ? ' extracted from a webpage' : '') + ':\n\n' + text + '\n\n' +
       'This recipe makes ' + portions + ' serving' + (portions !== 1 ? 's' : '') + '. ' +

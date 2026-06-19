@@ -373,14 +373,14 @@
   </button>
 </div>
 
-<!-- Cook It Mode (manual macros) -->
+<!-- Cook It Mode (AI-powered) -->
 <div id="panel-cook">
   <div class="card">
-    <div class="card-title">Meal Details</div>
+    <div class="card-title">What Did You Cook?</div>
+    <label>Describe your meal — ingredients, how it was cooked, any sauces or sides</label>
+    <textarea id="cook-desc" placeholder="e.g. 4 chicken breasts grilled with olive oil, split into 4 containers with steamed broccoli"></textarea>
     <label>Meal Name</label>
-    <input type="text" id="cook-name" placeholder="e.g. Grilled Chicken Meal Prep" autocomplete="off">
-    <label>Description (optional — helps with AI suggestions later)</label>
-    <textarea id="cook-desc" placeholder="e.g. 4 chicken breasts 5oz each, asparagus, split 4 containers"></textarea>
+    <input type="text" id="cook-name" placeholder="e.g. Grilled Chicken Prep" autocomplete="off">
     <div class="portions-row">
       <span class="portions-label">Portions / Containers</span>
       <div class="stepper">
@@ -389,37 +389,7 @@
         <button class="stepper-btn" onclick="changePortions(1)">&#43;</button>
       </div>
     </div>
-  </div>
-  <div class="card">
-    <div class="card-title">Total Batch Macros (for all portions)</div>
-    <div class="macro-grid">
-      <div class="macro-field">
-        <label>Protein (g)</label>
-        <input type="number" id="cook-protein" inputmode="decimal" placeholder="0">
-      </div>
-      <div class="macro-field">
-        <label>Calories</label>
-        <input type="number" id="cook-calories" inputmode="decimal" placeholder="0">
-      </div>
-      <div class="macro-field">
-        <label>Carbs (g)</label>
-        <input type="number" id="cook-carbs" inputmode="decimal" placeholder="0">
-      </div>
-      <div class="macro-field">
-        <label>Fat (g)</label>
-        <input type="number" id="cook-fat" inputmode="decimal" placeholder="0">
-      </div>
-      <div class="macro-field">
-        <label>Sugar (g)</label>
-        <input type="number" id="cook-sugar" inputmode="decimal" placeholder="0">
-      </div>
-      <div class="macro-field">
-        <label>Sodium (mg)</label>
-        <input type="number" id="cook-sodium" inputmode="decimal" placeholder="0">
-      </div>
-    </div>
-    <p class="serving-note">Per-serving macros will be calculated by dividing by the number of portions above.</p>
-    <button class="btn-analyze" onclick="analyzeCook()">Calculate &amp; Review</button>
+    <button class="btn-analyze" onclick="analyzeCook()">Estimate Macros with AI</button>
   </div>
 </div>
 
@@ -564,36 +534,11 @@ function hideResults() {
 }
 
 // ---- Cook It ----
-function analyzeCook() {
-  const name = document.getElementById('cook-name').value.trim();
-  if (!name) { showToast('Enter a meal name', 'error'); return; }
-
-  const totalProtein  = parseFloat(document.getElementById('cook-protein').value)  || 0;
-  const totalCalories = parseFloat(document.getElementById('cook-calories').value) || 0;
-  const totalCarbs    = parseFloat(document.getElementById('cook-carbs').value)    || 0;
-  const totalFat      = parseFloat(document.getElementById('cook-fat').value)      || 0;
-  const totalSugar    = parseFloat(document.getElementById('cook-sugar').value)    || 0;
-  const totalSodium   = parseFloat(document.getElementById('cook-sodium').value)   || 0;
-
-  if (!totalCalories && !totalProtein) {
-    showToast('Enter at least protein or calories', 'error');
-    return;
-  }
-
-  const p = portions;
-  showConfirmation({
-    name,
-    servingLabel: p > 1 ? '1 of ' + p + ' containers' : '1 serving',
-    protein:  Math.round(totalProtein  / p),
-    calories: Math.round(totalCalories / p),
-    carbs:    Math.round(totalCarbs    / p),
-    fat:      Math.round(totalFat      / p),
-    sugar:    Math.round(totalSugar    / p),
-    sodium:   Math.round(totalSodium   / p),
-    confidence: 'manual',
-    notes: 'Macros you entered, divided across ' + p + ' portion' + (p !== 1 ? 's' : '') + '.',
-    mode: 'cook'
-  });
+async function analyzeCook() {
+  const desc = document.getElementById('cook-desc').value.trim();
+  if (!desc) { showToast('Describe what you cooked first', 'error'); return; }
+  const name = document.getElementById('cook-name').value.trim() || '';
+  await callBuildRecipe({ mode: 'cook', text: desc, name, portions });
 }
 
 // ---- Paste ----
@@ -792,8 +737,7 @@ function showSuccess(title, sub) {
 
 function resetBuilder() {
   hideResults();
-  ['cook-name','cook-desc','paste-text','paste-name','url-input','url-name','ordered-desc','ordered-name',
-   'cook-protein','cook-calories','cook-carbs','cook-fat','cook-sugar','cook-sodium'].forEach(id => {
+  ['cook-name','cook-desc','paste-text','paste-name','url-input','url-name','ordered-desc','ordered-name'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
