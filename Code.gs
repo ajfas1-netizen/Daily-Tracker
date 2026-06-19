@@ -32,6 +32,9 @@ function doGet(e) {
     case 'getSummaryHistory':
       result = getSummaryHistory();
       break;
+    case 'getHomeData':
+      result = getHomeData(e.parameter.date);
+      break;
     case 'getNextWorkout':
       result = getNextWorkout();
       break;
@@ -84,6 +87,12 @@ function doPost(e) {
       break;
     case 'logFoodDirect':
       result = logFoodDirect(body);
+      break;
+    case 'getCoachAdvice':
+      result = getCoachAdvice(body);
+      break;
+    case 'deleteLogEntry':
+      result = deleteLogEntry(body);
       break;
     case 'logWorkoutSession':
       result = logWorkoutSession(body);
@@ -1042,4 +1051,141 @@ function getWorkoutHistory() {
   }
 
   return Object.values(sessions).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// ---- getHomeData ----
+// Single endpoint that replaces getFoods + getDaySummary + getYesterday on home screen load.
+function getHomeData(dateParam) {
+  const date = dateParam || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const daySummary = getDaySummary(date);
+  const yesterday  = getYesterday();
+  const foods      = getFoods();
+
+  // Next workout day for preview
+  const rotation = ['CHEST', 'PULL', 'SHOULDERS', 'LEGS'];
+  let nextDay = 'CHEST';
+  try {
+    const sessSheet = getSheet('WorkoutSessions');
+    if (sessSheet) {
+      const data = sessSheet.getDataRange().getValues();
+      let lastDay = null, latestDate = '';
+      for (let i = 1; i < data.length; i++) {
+        const rowDate = data[i][1] instanceof Date
+          ? Utilities.formatDate(data[i][1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+          : String(data[i][1]);
+        if (rowDate > latestDate) { latestDate = rowDate; lastDay = data[i][2]; }
+      }
+      const lastIdx = lastDay ? rotation.indexOf(lastDay) : -1;
+      nextDay = rotation[(lastIdx + 1) % rotation.length];
+    }
+  } catch (e) { /* ignore */ }
+
+  return { foods, daySummary, yesterday, nextWorkoutDay: nextDay };
+}
+
+// ---- deleteLogEntry ----
+// Deletes a single Log row by matching timestamp. Used for accidental entries.
+function deleteLogEntry(body) {
+  const timestamp = body.timestamp;
+  if (!timestamp) return { error: 'timestamp required' };
+
+  const sheet = getSheet('Log');
+  const data  = sheet.getDataRange().getValues();
+
+  for (let i = data.length - 1; i >= 1; i--) {
+    const rowTs = data[i][0] instanceof Date
+      ? data[i][0].toISOString()
+      : String(data[i][0]);
+    if (rowTs === timestamp || rowTs.startsWith(timestamp.replace('Z', ''))) {
+      sheet.deleteRow(i + 1);
+      const date = data[i][1] instanceof Date
+        ? Utilities.formatDate(data[i][1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+        : String(data[i][1]);
+      rebuildDailySummary(date);
+      return { success: true };
+    }
+  }
+  return { error: 'Entry not found' };
+}
+
+// ---- getCoachAdvice ----
+// Pulls recent data from sheets and sends it + user's message to Claude.
+function getCoachAdvice(body) {
+  const message = body.message || 'Review my recent data and give me tips.';
+  const targets = body.targets || { protein: 190, calories: 2300, water: 128 };
+
+  const summaryHistory = getSummaryHistory().slice(-14);
+  const workoutHistory = getWorkoutHistory().slice(0, 8);
+
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const past  = summaryHistory.filter(h => h.date < today);
+  const n     = past.length;
+
+  let ctx = 'USER TARGETS: ' + targets.protein + 'g protein | ' +
+            targets.calories + ' cal | ' + targets.water + 'oz water\n\n';
+
+  if (n > 0) {
+    const avgProt = Math.round(past.reduce((s, h) => s + h.protein, 0) / n);
+    const avgCal  = Math.round(past.reduce((s, h) => s + h.calories, 0) / n);
+    const avgWater = Math.round(past.reduce((s, h) => s + h.waterOz, 0) / n);
+    const protHits = past.filter(h => h.protein >= targets.protein).length;
+    const workoutDays = past.filter(h => h.workoutDone === 'Yes').length;
+    const drinks = past.reduce((s, h) => s + (h.coorsCount || 0) + (h.bourbonCount || 0), 0);
+
+    ctx += 'LAST ' + n + ' DAYS AVERAGES:\n';
+    ctx += '  Protein: ' + avgProt + 'g avg (goal hit ' + protHits + '/' + n + ' days)\n';
+    ctx += '  Calories: ' + avgCal + ' avg\n';
+    ctx += '  Water: ' + avgWater + 'oz avg\n';
+    ctx += '  Workouts: ' + workoutDays + ' of ' + n + ' days\n';
+    ctx += '  Drinks logged: ' + drinks + ' total\n\n';
+  }
+
+  ctx += 'DAILY LOG (most recent ' + Math.min(summaryHistory.length, 14) + ' days):\n';
+  summaryHistory.slice().reverse().slice(0, 10).forEach(h => {
+    ctx += h.date + ': ' + h.protein + 'p / ' + h.calories + 'cal / ' +
+           h.waterOz + 'oz water / workout:' + (h.workoutDone || 'No') +
+           (h.bodyweight ? ' / ' + h.bodyweight + 'lbs' : '') + '\n';
+  });
+
+  if (workoutHistory.length > 0) {
+    ctx += '\nRECENT WORKOUTS:\n';
+    workoutHistory.slice(0, 5).forEach(s => {
+      const exCount = new Set(s.sets.map(x => x.exerciseName)).size;
+      ctx += s.date + ': ' + s.dayName + ' — ' + exCount + ' exercises / ' + s.sets.length + ' sets\n';
+    });
+  }
+
+  const apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
+  if (!apiKey) return { error: 'CLAUDE_API_KEY not set in Script Properties.' };
+
+  const systemPrompt =
+    'You are a concise, no-BS fitness and nutrition coach embedded in "The Grind" tracking app. ' +
+    'The user tracks protein, calories, water, bodyweight, and gym workouts daily. ' +
+    'Give practical, personalized advice based on their actual data. ' +
+    'Be direct and encouraging. Keep responses to 2-3 short paragraphs max. ' +
+    'Use specific numbers from their data when relevant. No generic filler.\n\n' +
+    'THEIR DATA:\n' + ctx;
+
+  try {
+    const response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      payload: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: message }]
+      }),
+      muteHttpExceptions: true
+    });
+    const data = JSON.parse(response.getContentText());
+    if (data.error) return { error: 'Claude API: ' + data.error.message };
+    return { success: true, reply: data.content[0].text };
+  } catch (err) {
+    return { error: 'Coach error: ' + err.message };
+  }
 }
