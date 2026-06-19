@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>The Grind – Food</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #111a2e;
+      --card2: #162036;
+      --border: #1e2d4a;
+      --text: #e4e8f1;
+      --dim: #6b7a99;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59,130,246,0.18);
+      --green: #22c55e;
+      --green-glow: rgba(34,197,94,0.18);
+      --orange: #f59e0b;
+      --red: #ef4444;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      max-width: 480px; margin: 0 auto;
+      padding-bottom: 24px; min-height: 100vh;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: rgba(11,17,32,0.97);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .back-btn {
+      background: none; border: none; color: var(--dim);
+      font-size: 22px; cursor: pointer; padding: 2px 6px 2px 0; line-height: 1;
+    }
+    .header-title { font-size: 15px; font-weight: 700; }
+    .header-sub { font-size: 11px; color: var(--accent); font-weight: 700; letter-spacing: 1px; margin-top: 1px; }
+
+    /* ---- Macro Bar ---- */
+    .macro-bar {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 10px 16px; display: flex; gap: 16px; align-items: center;
+    }
+    .mb-item { text-align: center; flex: 1; }
+    .mb-value { font-size: 18px; font-weight: 800; }
+    .mb-value.prot { color: var(--accent); }
+    .mb-value.cal  { color: var(--orange); }
+    .mb-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 1px; }
+    .mb-bar-wrap { flex: 2; }
+    .mb-bar-track { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
+    .mb-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .mb-bar-fill.prot { background: var(--accent); }
+    .mb-bar-fill.cal  { background: var(--orange); }
+    .mb-bar-fill.over { background: var(--red); }
+    .mb-bar-label { font-size: 9px; color: var(--dim); display: flex; justify-content: space-between; }
+
+    /* ---- Content ---- */
+    .content { padding: 14px 16px; }
+
+    /* ---- Search ---- */
+    .search-wrap { position: relative; margin-bottom: 14px; }
+    .search-wrap input {
+      width: 100%; background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 11px 14px 11px 38px;
+      color: var(--text); font-size: 14px;
+    }
+    .search-wrap input:focus { outline: none; border-color: var(--accent); }
+    .search-icon {
+      position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+      color: var(--dim); font-size: 15px; pointer-events: none;
+    }
+
+    /* ---- Food Cards ---- */
+    .food-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 12px 14px; margin-bottom: 9px;
+    }
+    .food-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+    .food-name { font-size: 14px; font-weight: 700; flex: 1; line-height: 1.3; }
+    .food-serving { font-size: 10px; color: var(--dim); background: var(--border); padding: 2px 8px; border-radius: 6px; flex-shrink: 0; margin-left: 8px; }
+    .food-macros { font-size: 11px; color: var(--dim); margin-bottom: 10px; }
+    .food-macros .prot { color: var(--accent); font-weight: 700; }
+    .food-actions { display: flex; align-items: center; gap: 8px; }
+    .serving-btn {
+      width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--card2); color: var(--text); font-size: 18px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .serving-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .serving-count { font-size: 18px; font-weight: 800; width: 26px; text-align: center; color: var(--accent); }
+    .log-food-btn {
+      background: var(--green); color: #000; border: none; border-radius: 10px;
+      padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; margin-left: auto;
+    }
+    .log-food-btn:active { opacity: 0.8; transform: scale(0.96); }
+    .log-food-btn.logging { background: var(--border); color: var(--dim); }
+
+    /* ---- Add Food ---- */
+    .section-title {
+      font-size: 10px; font-weight: 700; color: var(--dim);
+      text-transform: uppercase; letter-spacing: 1.5px; margin: 20px 0 10px;
+    }
+    .add-food-toggle {
+      width: 100%; background: transparent; border: 1px dashed var(--border);
+      border-radius: 11px; padding: 12px; color: var(--accent);
+      font-size: 14px; font-weight: 600; cursor: pointer; text-align: center;
+    }
+    .add-food-toggle:active { background: var(--accent-glow); }
+    .add-food-form {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px; display: none; margin-top: 10px;
+    }
+    .add-food-form.open { display: block; }
+    .form-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .form-field { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+    .form-field.full { flex-basis: 100%; }
+    .form-field label { font-size: 10px; color: var(--dim); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-field input {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
+      padding: 9px 10px; color: var(--text); font-size: 14px; width: 100%;
+    }
+    .form-field input:focus { outline: none; border-color: var(--accent); }
+    .batch-toggle { display: flex; margin-bottom: 10px; border-radius: 9px; overflow: hidden; border: 1px solid var(--border); }
+    .batch-toggle button { flex: 1; padding: 8px; border: none; background: var(--bg); color: var(--dim); font-size: 12px; font-weight: 600; cursor: pointer; }
+    .batch-toggle button.active { background: var(--accent); color: #fff; }
+    .save-food-btn {
+      width: 100%; background: var(--accent); color: #fff;
+      border: none; border-radius: 10px; padding: 12px; font-size: 14px; font-weight: 700;
+      cursor: pointer; margin-top: 6px;
+    }
+    .save-food-btn:active { opacity: 0.85; }
+
+    /* ---- Status ---- */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--green); color: #000; padding: 10px 20px;
+      border-radius: 20px; font-size: 13px; font-weight: 700;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 99;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    .empty { text-align: center; padding: 32px 0; color: var(--dim); font-size: 13px; }
+    .loading { text-align: center; padding: 32px 0; color: var(--dim); }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2px solid rgba(255,255,255,0.08); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <button class="back-btn" onclick="goHome()">&#8592;</button>
+    <div>
+      <div class="header-title">The Grind</div>
+      <div class="header-sub">FOOD LOG</div>
+    </div>
+  </div>
+</div>
+
+<!-- Today's macro bar -->
+<div class="macro-bar" id="macroBar">
+  <div class="mb-item">
+    <div class="mb-value prot" id="mbProt">--</div>
+    <div class="mb-label">Protein</div>
+  </div>
+  <div class="mb-bar-wrap">
+    <div class="mb-bar-track"><div class="mb-bar-fill prot" id="protBar" style="width:0%"></div></div>
+    <div class="mb-bar-label"><span id="mbProtLabel">0 / 190g</span></div>
+    <div class="mb-bar-track" style="margin-top:5px"><div class="mb-bar-fill cal" id="calBar" style="width:0%"></div></div>
+    <div class="mb-bar-label"><span id="mbCalLabel">0 / 2,300 cal</span></div>
+  </div>
+  <div class="mb-item">
+    <div class="mb-value cal" id="mbCal">--</div>
+    <div class="mb-label">Calories</div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="search-wrap">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" id="searchInput" placeholder="Search foods…" oninput="filterFoods(this.value)">
+  </div>
+
+  <div id="foodList">
+    <div class="loading"><div class="spinner"></div>Loading foods…</div>
+  </div>
+
+  <div class="section-title">Add New Food</div>
+  <button class="add-food-toggle" onclick="toggleAddFood()">+ Add New Food</button>
+  <div class="add-food-form" id="addFoodForm">
+    <div class="form-row"><div class="form-field full"><label>Name</label><input type="text" id="newFoodName" placeholder="e.g. Chicken & Rice Bowl"></div></div>
+    <div class="form-row"><div class="form-field full"><label>Serving Label</label><input type="text" id="newServingLabel" placeholder="e.g. 1 container" value="1 container"></div></div>
+    <div class="form-row"><div class="form-field"><label>Containers</label><input type="number" id="newContainers" value="1" min="1"></div></div>
+    <div class="batch-toggle">
+      <button class="active" onclick="setBatchMode(false, this)">Per Serving</button>
+      <button onclick="setBatchMode(true, this)">Batch Total</button>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Protein (g)</label><input type="number" id="newProtein" inputmode="decimal"></div>
+      <div class="form-field"><label>Calories</label><input type="number" id="newCalories" inputmode="decimal"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Carbs (g)</label><input type="number" id="newCarbs" inputmode="decimal"></div>
+      <div class="form-field"><label>Fat (g)</label><input type="number" id="newFat" inputmode="decimal"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>Sugar (g)</label><input type="number" id="newSugar" inputmode="decimal"></div>
+      <div class="form-field"><label>Sodium (mg)</label><input type="number" id="newSodium" inputmode="decimal"></div>
+    </div>
+    <button class="save-food-btn" onclick="saveNewFood()">Save to Library</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
+
+const DEFAULT_TARGETS = { protein: 190, calories: 2300, water: 128 };
+function getTargets() {
+  const raw = localStorage.getItem('grind_targets');
+  return raw ? JSON.parse(raw) : { ...DEFAULT_TARGETS };
+}
+const targets = getTargets();
+
+let foodsCache = [];
+let isBatchMode = false;
+
+async function apiGet(action) {
+  const res = await fetch(API + '?action=' + action);
+  return res.json();
+}
+async function apiPost(body) {
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+async function loadAll() {
+  try {
+    const [foods, summary] = await Promise.all([
+      apiGet('getFoods'),
+      apiGet('getDaySummary')
+    ]);
+    foodsCache = foods;
+    renderMacroBar(summary.totals);
+    renderFoods(foods);
+  } catch (err) {
+    document.getElementById('foodList').innerHTML = '<div class="empty">Could not load. Check connection.</div>';
+  }
+}
+
+function renderMacroBar(t) {
+  const pPct = Math.min(100, Math.round(((t.protein || 0) / targets.protein) * 100));
+  const cPct = Math.min(100, Math.round(((t.calories || 0) / targets.calories) * 100));
+  const over = (t.calories || 0) > targets.calories;
+
+  document.getElementById('mbProt').textContent = (t.protein || 0) + 'g';
+  document.getElementById('mbCal').textContent  = (t.calories || 0).toLocaleString();
+  document.getElementById('protBar').style.width = pPct + '%';
+  document.getElementById('calBar').style.width  = cPct + '%';
+  document.getElementById('calBar').className = 'mb-bar-fill cal' + (over ? ' over' : '');
+  document.getElementById('mbProtLabel').textContent = (t.protein || 0) + ' / ' + targets.protein + 'g';
+  document.getElementById('mbCalLabel').textContent  = (t.calories || 0).toLocaleString() + ' / ' + targets.calories.toLocaleString() + ' cal';
+}
+
+function renderFoods(foods) {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const list = foods.filter(f => f.id !== 'f006' && (!q || f.name.toLowerCase().includes(q)));
+  const container = document.getElementById('foodList');
+  if (!list.length) {
+    container.innerHTML = '<div class="empty">' + (q ? 'No foods match "' + q + '"' : 'No foods yet.') + '</div>';
+    return;
+  }
+  container.innerHTML = list.map(f => `
+    <div class="food-card">
+      <div class="food-top">
+        <span class="food-name">${f.name}</span>
+        <span class="food-serving">${f.servingLabel}</span>
+      </div>
+      <div class="food-macros"><span class="prot">${f.protein}p</span> · ${f.calories} cal · ${f.carbs}c · ${f.fat}f</div>
+      <div class="food-actions">
+        <button class="serving-btn" onclick="adjustServing('${f.id}',-1)">&#8722;</button>
+        <span class="serving-count" id="srv-${f.id}">1</span>
+        <button class="serving-btn" onclick="adjustServing('${f.id}',1)">&#43;</button>
+        <button class="log-food-btn" id="logBtn-${f.id}" onclick="logFood('${f.id}')">Log</button>
+      </div>
+    </div>`).join('');
+}
+
+function filterFoods(q) { renderFoods(foodsCache); }
+
+function adjustServing(id, delta) {
+  const el = document.getElementById('srv-' + id);
+  el.textContent = Math.min(10, Math.max(1, parseInt(el.textContent) + delta));
+}
+
+async function logFood(foodId) {
+  const food = foodsCache.find(f => f.id === foodId);
+  if (!food) return;
+  const servings = parseInt(document.getElementById('srv-' + foodId).textContent);
+  const btn = document.getElementById('logBtn-' + foodId);
+  btn.disabled = true; btn.textContent = '…'; btn.classList.add('logging');
+  try {
+    await apiPost({ action: 'logFood', foodId, servings });
+    document.getElementById('srv-' + foodId).textContent = '1';
+    showToast('Logged ' + food.name + (servings > 1 ? ' ×' + servings : ''));
+    // Refresh macro bar
+    const summary = await apiGet('getDaySummary');
+    renderMacroBar(summary.totals);
+  } catch (err) {
+    showToast('Failed to log');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Log'; btn.classList.remove('logging');
+  }
+}
+
+// ---- Add New Food ----
+function toggleAddFood() { document.getElementById('addFoodForm').classList.toggle('open'); }
+function setBatchMode(batch, btn) {
+  isBatchMode = batch;
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+async function saveNewFood() {
+  const name = document.getElementById('newFoodName').value.trim();
+  if (!name) { alert('Enter a food name.'); return; }
+  const body = {
+    action: 'addFood', name,
+    servingLabel: document.getElementById('newServingLabel').value.trim() || '1 serving',
+    containers:   parseInt(document.getElementById('newContainers').value) || 1,
+    isBatch: isBatchMode,
+    protein:  parseFloat(document.getElementById('newProtein').value)  || 0,
+    calories: parseFloat(document.getElementById('newCalories').value) || 0,
+    carbs:    parseFloat(document.getElementById('newCarbs').value)    || 0,
+    fat:      parseFloat(document.getElementById('newFat').value)      || 0,
+    sugar:    parseFloat(document.getElementById('newSugar').value)    || 0,
+    sodium:   parseFloat(document.getElementById('newSodium').value)   || 0
+  };
+  const btn = document.querySelector('.save-food-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const result = await apiPost(body);
+    if (result.success) {
+      foodsCache.push(result.food);
+      renderFoods(foodsCache);
+      ['newFoodName','newProtein','newCalories','newCarbs','newFat','newSugar','newSodium'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('newContainers').value = '1';
+      document.getElementById('addFoodForm').classList.remove('open');
+      showToast('Added ' + name + ' to library');
+    }
+  } catch (err) {
+    showToast('Failed to save');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save to Library';
+  }
+}
+
+function goHome() { window.location.href = 'index.html'; }
+
+loadAll();
+</script>
+</body>
+</html>

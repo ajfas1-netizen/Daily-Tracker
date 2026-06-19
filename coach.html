@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>The Grind – Coach</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #111a2e;
+      --card2: #162036;
+      --border: #1e2d4a;
+      --text: #e4e8f1;
+      --dim: #6b7a99;
+      --accent: #3b82f6;
+      --orange: #f59e0b;
+      --green: #22c55e;
+      --red: #ef4444;
+      --coach: #f59e0b;
+      --coach-bg: rgba(245,158,11,0.08);
+      --coach-border: rgba(245,158,11,0.2);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      max-width: 480px; margin: 0 auto;
+      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: rgba(11,17,32,0.97);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      flex-shrink: 0;
+    }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .back-btn {
+      background: none; border: none; color: var(--dim);
+      font-size: 22px; cursor: pointer; padding: 2px 6px 2px 0; line-height: 1;
+    }
+    .header-title { font-size: 15px; font-weight: 700; }
+    .header-sub {
+      font-size: 11px; color: var(--coach); font-weight: 700;
+      letter-spacing: 1px; margin-top: 1px;
+    }
+    .clear-btn {
+      background: none; border: 1px solid var(--border); border-radius: 8px;
+      color: var(--dim); font-size: 11px; font-weight: 600; padding: 5px 10px; cursor: pointer;
+    }
+    .clear-btn:active { color: var(--text); border-color: var(--dim); }
+
+    /* ---- Chat Area ---- */
+    .chat-area {
+      flex: 1; overflow-y: auto; padding: 14px 16px;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ---- Intro / Quick Prompts ---- */
+    .intro {
+      text-align: center; padding: 24px 8px 20px;
+    }
+    .intro-icon { font-size: 40px; margin-bottom: 10px; }
+    .intro-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+    .intro-sub { font-size: 13px; color: var(--dim); line-height: 1.5; margin-bottom: 20px; }
+    .quick-prompts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .qp-btn {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 10px; text-align: left;
+      color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer;
+      line-height: 1.4;
+    }
+    .qp-btn .qp-icon { font-size: 18px; display: block; margin-bottom: 5px; }
+    .qp-btn:active { background: var(--card2); border-color: var(--coach); }
+
+    /* ---- Messages ---- */
+    .message { margin-bottom: 14px; display: flex; flex-direction: column; }
+    .message.user { align-items: flex-end; }
+    .message.coach { align-items: flex-start; }
+
+    .bubble {
+      max-width: 85%; padding: 11px 14px; border-radius: 16px;
+      font-size: 14px; line-height: 1.55;
+    }
+    .message.user .bubble {
+      background: var(--accent); color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .message.coach .bubble {
+      background: var(--coach-bg); border: 1px solid var(--coach-border);
+      color: var(--text); border-bottom-left-radius: 4px;
+    }
+    .msg-time {
+      font-size: 10px; color: var(--dim); margin-top: 4px; padding: 0 4px;
+    }
+
+    /* Typing dots */
+    .typing-dots { display: flex; gap: 4px; padding: 14px 16px; }
+    .typing-dots span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--coach); opacity: 0.4;
+      animation: pulse 1.2s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%, 100% { opacity: 0.2; transform: scale(0.85); } 50% { opacity: 0.9; transform: scale(1); } }
+
+    /* ---- Input Bar ---- */
+    .input-bar {
+      background: rgba(11,17,32,0.97); border-top: 1px solid var(--border);
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+      display: flex; gap: 8px; align-items: flex-end;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      flex-shrink: 0;
+    }
+    .input-bar textarea {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 10px 14px; color: var(--text);
+      font-size: 14px; font-family: inherit; resize: none; line-height: 1.4;
+      max-height: 100px; overflow-y: auto;
+    }
+    .input-bar textarea:focus { outline: none; border-color: var(--coach); }
+    .input-bar textarea::placeholder { color: var(--dim); }
+    .send-btn {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--coach); color: #000; border: none;
+      font-size: 18px; font-weight: 800; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .send-btn:active { opacity: 0.8; }
+    .send-btn:disabled { background: var(--border); color: var(--dim); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <button class="back-btn" onclick="goHome()">&#8592;</button>
+    <div>
+      <div class="header-title">The Grind</div>
+      <div class="header-sub">AI COACH</div>
+    </div>
+  </div>
+  <button class="clear-btn" onclick="clearChat()">Clear</button>
+</div>
+
+<div class="chat-area" id="chatArea">
+  <div class="intro" id="intro">
+    <div class="intro-icon">&#129304;</div>
+    <div class="intro-title">Your Coach</div>
+    <div class="intro-sub">Ask anything about your nutrition, training, or progress. Your recent data is loaded automatically.</div>
+    <div class="quick-prompts">
+      <button class="qp-btn" onclick="sendPrompt('How am I tracking this week overall?')">
+        <span class="qp-icon">&#128200;</span>Weekly check-in
+      </button>
+      <button class="qp-btn" onclick="sendPrompt('Give me tips to consistently hit my protein goal.')">
+        <span class="qp-icon">&#128165;</span>Hit protein goal
+      </button>
+      <button class="qp-btn" onclick="sendPrompt('How is my workout consistency and what should I focus on?')">
+        <span class="qp-icon">&#127947;</span>Workout advice
+      </button>
+      <button class="qp-btn" onclick="sendPrompt('What is one thing I should change this week to see better results?')">
+        <span class="qp-icon">&#127919;</span>Top priority
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="input-bar">
+  <textarea id="msgInput" placeholder="Ask your coach…" rows="1"
+    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"
+    oninput="autoResize(this)"></textarea>
+  <button class="send-btn" id="sendBtn" onclick="sendMessage()">&#8593;</button>
+</div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
+
+const DEFAULT_TARGETS = { protein: 190, calories: 2300, water: 128 };
+function getTargets() {
+  const raw = localStorage.getItem('grind_targets');
+  return raw ? JSON.parse(raw) : { ...DEFAULT_TARGETS };
+}
+const targets = getTargets();
+
+let isLoading = false;
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function scrollBottom() {
+  const area = document.getElementById('chatArea');
+  setTimeout(() => { area.scrollTop = area.scrollHeight; }, 60);
+}
+
+function hideIntro() {
+  const intro = document.getElementById('intro');
+  if (intro) intro.remove();
+}
+
+function addMessage(text, role) {
+  const area = document.getElementById('chatArea');
+  const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const div = document.createElement('div');
+  div.className = 'message ' + role;
+  div.innerHTML = `
+    <div class="bubble">${text.replace(/\n/g, '<br>')}</div>
+    <div class="msg-time">${time}</div>`;
+  area.appendChild(div);
+  scrollBottom();
+}
+
+function showTyping() {
+  const area = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.id = 'typingDots';
+  div.className = 'message coach';
+  div.innerHTML = '<div class="bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
+  area.appendChild(div);
+  scrollBottom();
+}
+
+function hideTyping() {
+  const el = document.getElementById('typingDots');
+  if (el) el.remove();
+}
+
+async function sendPrompt(text) {
+  document.getElementById('msgInput').value = text;
+  await sendMessage();
+}
+
+async function sendMessage() {
+  if (isLoading) return;
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  hideIntro();
+  addMessage(text, 'user');
+  input.value = '';
+  input.style.height = 'auto';
+  isLoading = true;
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  showTyping();
+
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'getCoachAdvice', message: text, targets })
+    });
+    const data = await res.json();
+    hideTyping();
+    if (data.error) {
+      addMessage('Sorry, something went wrong: ' + data.error, 'coach');
+    } else {
+      addMessage(data.reply, 'coach');
+    }
+  } catch (err) {
+    hideTyping();
+    addMessage('Could not reach the server. Check your connection and try again.', 'coach');
+  } finally {
+    isLoading = false;
+    btn.disabled = false;
+  }
+}
+
+function clearChat() {
+  const area = document.getElementById('chatArea');
+  area.innerHTML = `
+    <div class="intro" id="intro">
+      <div class="intro-icon">&#129304;</div>
+      <div class="intro-title">Your Coach</div>
+      <div class="intro-sub">Ask anything about your nutrition, training, or progress. Your recent data is loaded automatically.</div>
+      <div class="quick-prompts">
+        <button class="qp-btn" onclick="sendPrompt('How am I tracking this week overall?')">
+          <span class="qp-icon">&#128200;</span>Weekly check-in
+        </button>
+        <button class="qp-btn" onclick="sendPrompt('Give me tips to consistently hit my protein goal.')">
+          <span class="qp-icon">&#128165;</span>Hit protein goal
+        </button>
+        <button class="qp-btn" onclick="sendPrompt('How is my workout consistency and what should I focus on?')">
+          <span class="qp-icon">&#127947;</span>Workout advice
+        </button>
+        <button class="qp-btn" onclick="sendPrompt('What is one thing I should change this week to see better results?')">
+          <span class="qp-icon">&#127919;</span>Top priority
+        </button>
+      </div>
+    </div>`;
+}
+
+function goHome() { window.location.href = 'index.html'; }
+
+// Focus input on load
+document.getElementById('msgInput').focus();
+</script>
+</body>
+</html>
