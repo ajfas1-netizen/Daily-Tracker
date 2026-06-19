@@ -375,7 +375,21 @@ function getDaySummary(dateParam) {
   const date = dateParam || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   const totals = getToday(date);
   const log = getTodayLog(date);
-  return { totals: totals, log: log };
+
+  const summarySheet = getSheet('DailySummary');
+  const summaryData = summarySheet.getDataRange().getValues();
+  totals.workoutDone = 'No';
+  for (let i = 1; i < summaryData.length; i++) {
+    const rowDate = summaryData[i][0] instanceof Date
+      ? Utilities.formatDate(summaryData[i][0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : summaryData[i][0];
+    if (rowDate === date) {
+      totals.workoutDone = summaryData[i][7] || 'No';
+      break;
+    }
+  }
+
+  return { totals, log };
 }
 
 // ---- getYesterday ----
@@ -768,10 +782,21 @@ function syncExercises() {
     ['V-Bar Cable Pushdown',        'Triceps',      'CHEST',     140, false],
     ['Overhead Cable Extension',    'Triceps',      'CHEST',     50,  true],
     ['Reverse Grip Pushdown',       'Triceps',      'CHEST',     40,  false],
+    ['Skull Crushers',              'Triceps',      'CHEST',     55,  false],
+    ['Close Grip Bench Press',      'Triceps',      'CHEST',     95,  false],
+    ['Tricep Dips',                 'Triceps',      'CHEST',     0,   false],
+    ['Pec Deck',                    'Chest',        'CHEST',     110, false],
+    ['Cable Fly',                   'Chest',        'CHEST',     30,  true],
+    ['Landmine Press',              'Chest',        'CHEST',     25,  false],
     ['Ab Wheel',                    'Core',         'CHEST',     0,   false],
+    ['Landmine Twist',              'Core',         'CHEST',     25,  false],
     // PULL DAY
     ['Wide Grip Lat Pulldown',      'Back',         'PULL',      120, false],
     ['Seated Close Grip Row',       'Back',         'PULL',      120, false],
+    ['T-Bar Row',                   'Back',         'PULL',      90,  false],
+    ['Landmine Row',                'Back',         'PULL',      45,  false],
+    ['Pull-ups',                    'Back',         'PULL',      0,   false],
+    ['Chin-ups',                    'Back',         'PULL',      0,   false],
     ['Rope Straight Arm Pulldown',  'Back',         'PULL',      80,  false],
     ['Rear Delt Fly Machine',       'Rear Delts',   'PULL',      90,  false],
     ['Back Extension Machine',      'Lower Back',   'PULL',      25,  false],
@@ -779,10 +804,17 @@ function syncExercises() {
     ['Hammer Curls',                'Biceps',       'PULL',      35,  true],
     ['Cross Body Curls',            'Biceps',       'PULL',      25,  true],
     ['Cable Concentration Curls',   'Biceps',       'PULL',      40,  false],
+    ['Preacher Curl',               'Biceps',       'PULL',      50,  false],
+    ['EZ Bar Curl',                 'Biceps',       'PULL',      60,  false],
+    ['Incline DB Curl',             'Biceps',       'PULL',      20,  true],
+    ['KB Single Arm Row',           'Back',         'PULL',      40,  true],
     ['Face Pulls',                  'Rear Delts',   'PULL',      50,  false],
     // SHOULDERS DAY
     ['Plate Loaded Shoulder Press', 'Shoulders',    'SHOULDERS', 45,  true],
     ['Arnold Press',                'Shoulders',    'SHOULDERS', 30,  true],
+    ['Barbell OHP',                 'Shoulders',    'SHOULDERS', 95,  false],
+    ['Push Press',                  'Shoulders',    'SHOULDERS', 95,  false],
+    ['Bradford Press',              'Shoulders',    'SHOULDERS', 45,  false],
     ['Front Raises',                'Shoulders',    'SHOULDERS', 15,  false],
     ['Lateral Raises',              'Shoulders',    'SHOULDERS', 15,  false],
     ['Cable Lateral Raises',        'Shoulders',    'SHOULDERS', 15,  false],
@@ -790,19 +822,33 @@ function syncExercises() {
     ['Dumbbell Shrugs',             'Traps',        'SHOULDERS', 60,  true],
     ['Bent Over Rear Delt Raises',  'Rear Delts',   'SHOULDERS', 15,  false],
     ["Farmer's Carries",            'Functional',   'SHOULDERS', 65,  true],
+    ['KB Clean and Press',          'Shoulders',    'SHOULDERS', 35,  true],
+    ['KB Halo',                     'Shoulders',    'SHOULDERS', 25,  false],
+    ['KB Windmill',                 'Functional',   'SHOULDERS', 20,  true],
     // LEGS DAY
     ['Leg Press',                   'Quads',        'LEGS',      180, false],
     ['Barbell Squat',               'Quads',        'LEGS',      135, false],
     ['Hack Squat',                  'Quads',        'LEGS',      90,  false],
+    ['Goblet Squat',                'Quads',        'LEGS',      50,  false],
+    ['Landmine Squat',              'Quads',        'LEGS',      35,  false],
+    ['Sumo Deadlift',               'Hamstrings',   'LEGS',      185, false],
+    ['KB Sumo Deadlift',            'Hamstrings',   'LEGS',      62,  false],
     ['Romanian Deadlift',           'Hamstrings',   'LEGS',      95,  false],
+    ['Landmine RDL',                'Hamstrings',   'LEGS',      45,  false],
+    ['Good Mornings',               'Hamstrings',   'LEGS',      45,  false],
     ['Leg Curl Machine',            'Hamstrings',   'LEGS',      80,  false],
     ['Leg Extension Machine',       'Quads',        'LEGS',      80,  false],
     ['Bulgarian Split Squat',       'Quads/Glutes', 'LEGS',      0,   false],
+    ['Landmine Reverse Lunge',      'Quads/Glutes', 'LEGS',      35,  false],
+    ['Barbell Hip Thrust',          'Glutes',       'LEGS',      135, false],
     ['Hip Abduction Machine',       'Glutes',       'LEGS',      70,  false],
+    ['KB Swings',                   'Functional',   'LEGS',      40,  false],
+    ['Box Jumps',                   'Functional',   'LEGS',      0,   false],
     ['Standing Calf Raise Machine', 'Calves',       'LEGS',      90,  false],
     ['Seated Calf Raise',           'Calves',       'LEGS',      50,  false],
     ['Pallof Press',                'Core',         'LEGS',      30,  false],
     ['Cable Woodchop',              'Core',         'LEGS',      30,  false],
+    ['Hanging Leg Raise',           'Core',         'LEGS',      0,   false],
   ];
 
   let added = 0;
