@@ -554,6 +554,22 @@
   }
   .recipe-btn:active { background: var(--accent-glow); }
 
+  /* --- Workout Button --- */
+  .workout-btn {
+    width: 100%;
+    background: rgba(200,255,0,0.06);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 14px;
+    color: var(--accent);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .workout-btn:active { background: var(--accent-glow); }
+
   /* --- Settings --- */
   .settings-btn {
     position: absolute;
@@ -794,6 +810,9 @@
 
 <!-- Recipe Builder Link -->
 <button class="recipe-btn" onclick="openRecipeBuilder()">+ Recipe Builder</button>
+
+<!-- Workout Tracker Link -->
+<button class="workout-btn" onclick="openWorkout()">+ Workout Tracker</button>
 
 <!-- Today's Log (collapsible) -->
 <h2>Activity</h2>
@@ -1335,6 +1354,11 @@ function renderTrends(history) {
 // ---- Recipe Builder ----
 function openRecipeBuilder() {
   window.location.href = 'recipe.html';
+}
+
+// ---- Workout Tracker ----
+function openWorkout() {
+  window.location.href = 'workout.html';
 }
 
 // ---- Hard Refresh (cache bust) ----
