@@ -32,6 +32,15 @@ function doGet(e) {
     case 'getSummaryHistory':
       result = getSummaryHistory();
       break;
+    case 'getNextWorkout':
+      result = getNextWorkout();
+      break;
+    case 'getExerciseLibrary':
+      result = getExerciseLibrary();
+      break;
+    case 'getWorkoutHistory':
+      result = getWorkoutHistory();
+      break;
     default:
       result = { error: 'Unknown action: ' + action };
   }
@@ -75,6 +84,15 @@ function doPost(e) {
       break;
     case 'logFoodDirect':
       result = logFoodDirect(body);
+      break;
+    case 'logWorkoutSession':
+      result = logWorkoutSession(body);
+      break;
+    case 'setupWorkoutSheets':
+      result = setupWorkoutSheets();
+      break;
+    case 'syncExercises':
+      result = syncExercises();
       break;
     default:
       result = { error: 'Unknown action: ' + action };
@@ -685,4 +703,248 @@ function getSummaryHistory() {
 
   history.sort((a, b) => a.date.localeCompare(b.date));
   return history;
+}
+
+// ---- setupWorkoutSheets ----
+// Run once from Apps Script editor to create tabs and seed exercises.
+function setupWorkoutSheets() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  if (!ss.getSheetByName('ExerciseLibrary')) {
+    const s = ss.insertSheet('ExerciseLibrary');
+    s.appendRow(['id', 'name', 'muscleGroup', 'day', 'defaultWeight', 'isPerSide']);
+  }
+
+  if (!ss.getSheetByName('WorkoutSessions')) {
+    const s = ss.insertSheet('WorkoutSessions');
+    s.appendRow(['sessionId', 'date', 'dayName', 'exerciseName', 'setNumber', 'weight', 'reps', 'feel', 'timestamp']);
+  }
+
+  return syncExercises();
+}
+
+// ---- syncExercises ----
+// Seeds the ExerciseLibrary. Safe to re-run — only adds missing exercises.
+function syncExercises() {
+  const sheet = getSheet('ExerciseLibrary');
+  if (!sheet) return { error: 'ExerciseLibrary sheet not found. Run setupWorkoutSheets() first.' };
+
+  const existing = sheet.getDataRange().getValues();
+  const existingNames = new Set(existing.slice(1).map(r => String(r[1]).toLowerCase()));
+
+  let maxNum = 0;
+  existing.slice(1).forEach(r => {
+    const n = parseInt(String(r[0]).replace('ex', ''));
+    if (!isNaN(n) && n > maxNum) maxNum = n;
+  });
+
+  const catalog = [
+    // CHEST DAY
+    ['Flat Bench Press',            'Chest',        'CHEST',     45,  true],
+    ['Incline Bench Press',         'Chest',        'CHEST',     45,  true],
+    ['Decline Bench Press',         'Chest',        'CHEST',     50,  true],
+    ['Chest Fly Machine',           'Chest',        'CHEST',     120, false],
+    ['V-Bar Cable Pushdown',        'Triceps',      'CHEST',     140, false],
+    ['Overhead Cable Extension',    'Triceps',      'CHEST',     50,  true],
+    ['Reverse Grip Pushdown',       'Triceps',      'CHEST',     40,  false],
+    ['Ab Wheel',                    'Core',         'CHEST',     0,   false],
+    // PULL DAY
+    ['Wide Grip Lat Pulldown',      'Back',         'PULL',      120, false],
+    ['Seated Close Grip Row',       'Back',         'PULL',      120, false],
+    ['Rope Straight Arm Pulldown',  'Back',         'PULL',      80,  false],
+    ['Rear Delt Fly Machine',       'Rear Delts',   'PULL',      90,  false],
+    ['Back Extension Machine',      'Lower Back',   'PULL',      25,  false],
+    ['Alternating Dumbbell Curls',  'Biceps',       'PULL',      35,  true],
+    ['Hammer Curls',                'Biceps',       'PULL',      35,  true],
+    ['Cross Body Curls',            'Biceps',       'PULL',      25,  true],
+    ['Cable Concentration Curls',   'Biceps',       'PULL',      40,  false],
+    ['Face Pulls',                  'Rear Delts',   'PULL',      50,  false],
+    // SHOULDERS DAY
+    ['Plate Loaded Shoulder Press', 'Shoulders',    'SHOULDERS', 45,  true],
+    ['Arnold Press',                'Shoulders',    'SHOULDERS', 30,  true],
+    ['Front Raises',                'Shoulders',    'SHOULDERS', 15,  false],
+    ['Lateral Raises',              'Shoulders',    'SHOULDERS', 15,  false],
+    ['Cable Lateral Raises',        'Shoulders',    'SHOULDERS', 15,  false],
+    ['Upright Rows',                'Traps',        'SHOULDERS', 60,  false],
+    ['Dumbbell Shrugs',             'Traps',        'SHOULDERS', 60,  true],
+    ['Bent Over Rear Delt Raises',  'Rear Delts',   'SHOULDERS', 15,  false],
+    ["Farmer's Carries",            'Functional',   'SHOULDERS', 65,  true],
+    // LEGS DAY
+    ['Leg Press',                   'Quads',        'LEGS',      180, false],
+    ['Barbell Squat',               'Quads',        'LEGS',      135, false],
+    ['Hack Squat',                  'Quads',        'LEGS',      90,  false],
+    ['Romanian Deadlift',           'Hamstrings',   'LEGS',      95,  false],
+    ['Leg Curl Machine',            'Hamstrings',   'LEGS',      80,  false],
+    ['Leg Extension Machine',       'Quads',        'LEGS',      80,  false],
+    ['Bulgarian Split Squat',       'Quads/Glutes', 'LEGS',      0,   false],
+    ['Hip Abduction Machine',       'Glutes',       'LEGS',      70,  false],
+    ['Standing Calf Raise Machine', 'Calves',       'LEGS',      90,  false],
+    ['Seated Calf Raise',           'Calves',       'LEGS',      50,  false],
+    ['Pallof Press',                'Core',         'LEGS',      30,  false],
+    ['Cable Woodchop',              'Core',         'LEGS',      30,  false],
+  ];
+
+  let added = 0;
+  catalog.forEach(([name, muscleGroup, day, defaultWeight, isPerSide]) => {
+    if (!existingNames.has(name.toLowerCase())) {
+      maxNum++;
+      sheet.appendRow(['ex' + String(maxNum).padStart(3, '0'), name, muscleGroup, day, defaultWeight, isPerSide]);
+      added++;
+    }
+  });
+
+  return { success: true, message: added > 0 ? 'Added ' + added + ' exercises' : 'All exercises already present' };
+}
+
+// ---- getExerciseLibrary ----
+function getExerciseLibrary() {
+  const sheet = getSheet('ExerciseLibrary');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  return data.slice(1).filter(r => r[0]).map(row => ({
+    id:            row[0],
+    name:          row[1],
+    muscleGroup:   row[2],
+    day:           row[3],
+    defaultWeight: parseFloat(row[4]) || 0,
+    isPerSide:     !!row[5]
+  }));
+}
+
+// ---- getLastWeightsForAllExercises ----
+// Returns map of exerciseName → most recent weight logged (last row wins).
+function getLastWeightsForAllExercises() {
+  const sheet = getSheet('WorkoutSessions');
+  if (!sheet) return {};
+  const data = sheet.getDataRange().getValues();
+  const map = {};
+  for (let i = 1; i < data.length; i++) {
+    const name   = data[i][3];
+    const weight = data[i][5];
+    if (name && weight !== '' && weight !== null) {
+      map[name] = parseFloat(weight) || 0;
+    }
+  }
+  return map;
+}
+
+// ---- getNextWorkout ----
+// Returns all exercises (with lastWeight) and the next day in rotation.
+function getNextWorkout() {
+  try {
+    const rotation = ['CHEST', 'PULL', 'SHOULDERS', 'LEGS'];
+
+    const sessSheet = getSheet('WorkoutSessions');
+    if (!sessSheet) return { error: 'Run setupWorkoutSheets() from Apps Script editor, then redeploy.' };
+
+    const data = sessSheet.getDataRange().getValues();
+    let lastDay = null;
+    let latestDate = '';
+
+    for (let i = 1; i < data.length; i++) {
+      const rowDate = data[i][1] instanceof Date
+        ? Utilities.formatDate(data[i][1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+        : String(data[i][1]);
+      if (rowDate > latestDate) {
+        latestDate = rowDate;
+        lastDay = data[i][2];
+      }
+    }
+
+    const lastIdx = lastDay ? rotation.indexOf(lastDay) : -1;
+    const nextDay = rotation[(lastIdx + 1) % rotation.length];
+
+    const exercises = getExerciseLibrary();
+    const lastWeights = getLastWeightsForAllExercises();
+    exercises.forEach(ex => {
+      ex.lastWeight = lastWeights.hasOwnProperty(ex.name) ? lastWeights[ex.name] : null;
+    });
+
+    return { nextDay, exercises, lastDay };
+  } catch (err) {
+    return { error: 'getNextWorkout error: ' + err.message };
+  }
+}
+
+// ---- logWorkoutSession ----
+function logWorkoutSession(body) {
+  try {
+    const sessSheet = getSheet('WorkoutSessions');
+    if (!sessSheet) return { error: 'WorkoutSessions sheet not found. Run setupWorkoutSheets() first.' };
+
+    const sessionId = body.sessionId || ('sess_' + Date.now());
+    const date      = body.date;
+    const dayName   = body.dayName;
+    const sets      = body.sets || [];
+    const timestamp = new Date().toISOString();
+
+    sets.forEach(set => {
+      sessSheet.appendRow([
+        sessionId,
+        date,
+        dayName,
+        set.exerciseName,
+        set.setNumber,
+        parseFloat(set.weight) || 0,
+        parseInt(set.reps)     || 0,
+        set.feel || '',
+        timestamp
+      ]);
+    });
+
+    // Write to legacy Workouts sheet so DailySummary workoutDone flag updates
+    const workoutSheet = getSheet('Workouts');
+    if (workoutSheet) {
+      const wData = workoutSheet.getDataRange().getValues();
+      const existingDates = wData.slice(1).map(r =>
+        r[0] instanceof Date
+          ? Utilities.formatDate(r[0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+          : String(r[0])
+      );
+      if (!existingDates.includes(date)) {
+        workoutSheet.appendRow([date, dayName, sets.length + ' sets']);
+      }
+    }
+
+    rebuildDailySummary(date);
+    return { success: true, sessionId, setsLogged: sets.length };
+  } catch (err) {
+    return { error: 'logWorkoutSession error: ' + err.message };
+  }
+}
+
+// ---- getWorkoutHistory ----
+function getWorkoutHistory() {
+  const sheet = getSheet('WorkoutSessions');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  const sessions = {};
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const sid = row[0];
+    if (!sid) continue;
+    if (!sessions[sid]) {
+      sessions[sid] = {
+        sessionId: sid,
+        date: row[1] instanceof Date
+          ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+          : String(row[1]),
+        dayName: row[2],
+        sets: []
+      };
+    }
+    sessions[sid].sets.push({
+      exerciseName: row[3],
+      setNumber:    row[4],
+      weight:       row[5],
+      reps:         row[6],
+      feel:         row[7]
+    });
+  }
+
+  return Object.values(sessions).sort((a, b) => b.date.localeCompare(a.date));
 }
