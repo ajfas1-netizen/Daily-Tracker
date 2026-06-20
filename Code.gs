@@ -1,5 +1,6 @@
 // ---- Config ----
 const SHEET_ID = '1FpuctduIy7dKMPjjnNNRCeoUurotIdObdFsMQd4XvMY';
+const TZ = 'America/New_York';
 
 function getSheet(tabName) {
   return SpreadsheetApp.openById(SHEET_ID).getSheetByName(tabName);
@@ -160,7 +161,7 @@ function addFood(body) {
   const sugar = Math.round((body.sugar || 0) / divisor);
   const sodium = Math.round((body.sodium || 0) / divisor);
 
-  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
 
   sheet.appendRow([
     newId,
@@ -186,7 +187,7 @@ function logFood(body) {
   const servings = body.servings || 1;
   const now = new Date();
   const timestamp = now.toISOString();
-  const date = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const date = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
 
   const protein = food.protein * servings;
   const calories = food.calories * servings;
@@ -216,7 +217,7 @@ function logLiquid(body) {
   const amount = body.amount || 1;
   const now = new Date();
   const timestamp = now.toISOString();
-  const date = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const date = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
 
   let item, protein = 0, calories = 0, carbs = 0, fat = 0, sugar = 0, sodium = 0;
 
@@ -256,7 +257,7 @@ function logLiquid(body) {
 
 // ---- getToday ----
 function getToday(dateParam) {
-  const date = dateParam || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const date = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   const sheet = getSheet('Log');
   const data = sheet.getDataRange().getValues();
 
@@ -265,7 +266,7 @@ function getToday(dateParam) {
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    if (row[1] !== date && Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), 'yyyy-MM-dd') !== date) continue;
+    if (row[1] !== date && Utilities.formatDate(new Date(row[1]), TZ, 'yyyy-MM-dd') !== date) continue;
 
     const type = row[2];
     protein += row[5] || 0;
@@ -286,7 +287,7 @@ function getToday(dateParam) {
 
 // ---- getTodayLog ----
 function getTodayLog(dateParam) {
-  const date = dateParam || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const date = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   const sheet = getSheet('Log');
   const data = sheet.getDataRange().getValues();
   const entries = [];
@@ -294,7 +295,7 @@ function getTodayLog(dateParam) {
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     const rowDate = row[1] instanceof Date
-      ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(row[1], TZ, 'yyyy-MM-dd')
       : row[1];
     if (rowDate !== date) continue;
 
@@ -319,7 +320,7 @@ function getTodayLog(dateParam) {
 // ---- rebuildDailySummary ----
 function rebuildDailySummary(date) {
   if (!date) {
-    date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    date = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   }
 
   const logSheet = getSheet('Log');
@@ -330,7 +331,7 @@ function rebuildDailySummary(date) {
   for (let i = 1; i < logData.length; i++) {
     const row = logData[i];
     const rowDate = row[1] instanceof Date
-      ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(row[1], TZ, 'yyyy-MM-dd')
       : row[1];
     if (rowDate !== date) continue;
 
@@ -349,7 +350,7 @@ function rebuildDailySummary(date) {
   let workoutDone = 'No';
   for (let i = 1; i < workoutData.length; i++) {
     const rowDate = workoutData[i][0] instanceof Date
-      ? Utilities.formatDate(workoutData[i][0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(workoutData[i][0], TZ, 'yyyy-MM-dd')
       : workoutData[i][0];
     if (rowDate === date) { workoutDone = 'Yes'; break; }
   }
@@ -361,7 +362,7 @@ function rebuildDailySummary(date) {
 
   for (let i = 1; i < summaryData.length; i++) {
     const rowDate = summaryData[i][0] instanceof Date
-      ? Utilities.formatDate(summaryData[i][0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(summaryData[i][0], TZ, 'yyyy-MM-dd')
       : summaryData[i][0];
     if (rowDate === date) { foundRow = i + 1; break; }
   }
@@ -381,7 +382,7 @@ function rebuildDailySummary(date) {
 
 // ---- getDaySummary ----
 function getDaySummary(dateParam) {
-  const date = dateParam || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const date = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   const totals = getToday(date);
   const log = getTodayLog(date);
 
@@ -390,7 +391,7 @@ function getDaySummary(dateParam) {
   totals.workoutDone = 'No';
   for (let i = 1; i < summaryData.length; i++) {
     const rowDate = summaryData[i][0] instanceof Date
-      ? Utilities.formatDate(summaryData[i][0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(summaryData[i][0], TZ, 'yyyy-MM-dd')
       : summaryData[i][0];
     if (rowDate === date) {
       totals.workoutDone = summaryData[i][7] || 'No';
@@ -405,7 +406,7 @@ function getDaySummary(dateParam) {
 function getYesterday() {
   const now = new Date();
   now.setDate(now.getDate() - 1);
-  const date = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const date = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
 
   // Get yesterday's log totals
   const logSheet = getSheet('Log');
@@ -418,7 +419,7 @@ function getYesterday() {
   for (let i = 1; i < logData.length; i++) {
     const row = logData[i];
     const rowDate = row[1] instanceof Date
-      ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(row[1], TZ, 'yyyy-MM-dd')
       : row[1];
     if (rowDate !== date) continue;
 
@@ -442,7 +443,7 @@ function getYesterday() {
   let workoutSummary = [];
   for (let i = 1; i < workoutData.length; i++) {
     const rowDate = workoutData[i][0] instanceof Date
-      ? Utilities.formatDate(workoutData[i][0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(workoutData[i][0], TZ, 'yyyy-MM-dd')
       : workoutData[i][0];
     if (rowDate === date) {
       workedOut = true;
@@ -460,7 +461,7 @@ function getYesterday() {
 
 // ---- getTodayWorkout ----
 function getTodayWorkout() {
-  const date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const date = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   const workoutSheet = getSheet('Workouts');
   const data = workoutSheet.getDataRange().getValues();
   let workedOut = false;
@@ -468,7 +469,7 @@ function getTodayWorkout() {
 
   for (let i = 1; i < data.length; i++) {
     const rowDate = data[i][0] instanceof Date
-      ? Utilities.formatDate(data[i][0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(data[i][0], TZ, 'yyyy-MM-dd')
       : data[i][0];
     if (rowDate === date) {
       workedOut = true;
@@ -490,14 +491,14 @@ function logBodyweight(body) {
   const weight = parseFloat(body.weight);
   if (!weight || weight < 50 || weight > 500) return { error: 'Invalid weight' };
 
-  const date = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const date = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   const summarySheet = getSheet('DailySummary');
   const data = summarySheet.getDataRange().getValues();
   let foundRow = -1;
 
   for (let i = 1; i < data.length; i++) {
     const rowDate = data[i][0] instanceof Date
-      ? Utilities.formatDate(data[i][0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(data[i][0], TZ, 'yyyy-MM-dd')
       : data[i][0];
     if (rowDate === date) { foundRow = i + 1; break; }
   }
@@ -522,7 +523,7 @@ function getWeightHistory() {
     const weight = row[8];
     if (!weight) continue;
     const date = row[0] instanceof Date
-      ? Utilities.formatDate(row[0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(row[0], TZ, 'yyyy-MM-dd')
       : row[0];
     history.push({ date: date, weight: parseFloat(weight) });
   }
@@ -545,7 +546,7 @@ function syncFoods() {
     if (!isNaN(n) && n > maxNum) maxNum = n;
   });
 
-  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   const catalog = [
     ['Beef Egg Roll Bowl',         '1 container', 16, 230, 14, 12,  5,   0],
     ['Turkey with Tomato',         '1 container', 26, 160,  4,  6,  2,   0],
@@ -698,7 +699,7 @@ function callClaude(text, mode, portions) {
 function logFoodDirect(body) {
   const now = new Date();
   const timestamp = now.toISOString();
-  const date = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const date = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
 
   const protein  = parseFloat(body.protein)  || 0;
   const calories = parseFloat(body.calories) || 0;
@@ -730,7 +731,7 @@ function getSummaryHistory() {
     const row = data[i];
     if (!row[0]) continue;
     const date = row[0] instanceof Date
-      ? Utilities.formatDate(row[0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      ? Utilities.formatDate(row[0], TZ, 'yyyy-MM-dd')
       : row[0];
     history.push({
       date,
@@ -966,7 +967,7 @@ function getNextWorkout() {
 
     for (let i = 1; i < data.length; i++) {
       const rowDate = data[i][1] instanceof Date
-        ? Utilities.formatDate(data[i][1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+        ? Utilities.formatDate(data[i][1], TZ, 'yyyy-MM-dd')
         : String(data[i][1]);
       if (rowDate > latestDate) {
         latestDate = rowDate;
@@ -1023,7 +1024,7 @@ function logWorkoutSession(body) {
       const wData = workoutSheet.getDataRange().getValues();
       const existingDates = wData.slice(1).map(r =>
         r[0] instanceof Date
-          ? Utilities.formatDate(r[0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+          ? Utilities.formatDate(r[0], TZ, 'yyyy-MM-dd')
           : String(r[0])
       );
       if (!existingDates.includes(date)) {
@@ -1054,7 +1055,7 @@ function getWorkoutHistory() {
       sessions[sid] = {
         sessionId: sid,
         date: row[1] instanceof Date
-          ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+          ? Utilities.formatDate(row[1], TZ, 'yyyy-MM-dd')
           : String(row[1]),
         dayName: row[2],
         sets: []
@@ -1075,7 +1076,7 @@ function getWorkoutHistory() {
 // ---- getHomeData ----
 // Single endpoint that replaces getFoods + getDaySummary + getYesterday on home screen load.
 function getHomeData(dateParam) {
-  const date = dateParam || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const date = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   const daySummary = getDaySummary(date);
   const yesterday  = getYesterday();
   const foods      = getFoods();
@@ -1090,7 +1091,7 @@ function getHomeData(dateParam) {
       let lastDay = null, latestDate = '';
       for (let i = 1; i < data.length; i++) {
         const rowDate = data[i][1] instanceof Date
-          ? Utilities.formatDate(data[i][1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+          ? Utilities.formatDate(data[i][1], TZ, 'yyyy-MM-dd')
           : String(data[i][1]);
         if (rowDate > latestDate) { latestDate = rowDate; lastDay = data[i][2]; }
       }
@@ -1119,7 +1120,7 @@ function deleteLogEntry(body) {
     if (rowTs === timestamp || rowTs.startsWith(timestamp.replace('Z', ''))) {
       sheet.deleteRow(i + 1);
       const date = data[i][1] instanceof Date
-        ? Utilities.formatDate(data[i][1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+        ? Utilities.formatDate(data[i][1], TZ, 'yyyy-MM-dd')
         : String(data[i][1]);
       rebuildDailySummary(date);
       return { success: true };
@@ -1137,12 +1138,13 @@ function getCoachAdvice(body) {
   const summaryHistory = getSummaryHistory().slice(-14);
   const workoutHistory = getWorkoutHistory().slice(0, 8);
 
-  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  const past  = summaryHistory.filter(h => h.date < today);
+  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const past  = summaryHistory.filter(h => h.date <= today);
   const n     = past.length;
 
-  let ctx = 'USER TARGETS: ' + targets.protein + 'g protein | ' +
-            targets.calories + ' cal | ' + targets.water + 'oz water\n\n';
+  let ctx = 'TODAY\'S DATE: ' + today + '\n\n';
+  ctx += 'USER TARGETS: ' + targets.protein + 'g protein | ' +
+         targets.calories + ' cal | ' + targets.water + 'oz water\n\n';
 
   if (n > 0) {
     const avgProt = Math.round(past.reduce((s, h) => s + h.protein, 0) / n);
