@@ -775,17 +775,11 @@ function renderWeeklySummary(history) {
 
 // ---- Daily Insight ----
 async function loadInsight() {
-  const todayStr = new Date().toLocaleDateString('en-CA');
-  const key = 'grind_insight_' + todayStr;
-  const cached = localStorage.getItem(key);
   const card = document.getElementById('insightCard');
   const textEl = document.getElementById('insightText');
-  if (cached) {
-    textEl.textContent = cached;
-    textEl.classList.add('loaded');
-    card.style.display = 'block';
-    return;
-  }
+  card.style.display = 'block';
+  textEl.textContent = 'Checking in on your data…';
+  textEl.classList.remove('loaded');
   try {
     const res = await fetch(API, {
       method: 'POST',
@@ -799,21 +793,20 @@ async function loadInsight() {
     const data = await res.json();
     const insight = (data.reply || data.message || '').trim();
     if (insight) {
-      localStorage.setItem(key, insight);
       textEl.textContent = insight;
       textEl.classList.add('loaded');
-      card.style.display = 'block';
+    } else {
+      textEl.textContent = 'No insight available right now.';
     }
-  } catch { /* silent */ }
+  } catch {
+    textEl.textContent = 'Could not load insight — check connection.';
+  }
 }
 
 async function refreshInsight() {
-  const todayStr = new Date().toLocaleDateString('en-CA');
-  localStorage.removeItem('grind_insight_' + todayStr);
   const textEl = document.getElementById('insightText');
   textEl.textContent = 'Regenerating…';
   textEl.classList.remove('loaded');
-  document.getElementById('insightCard').style.display = 'block';
   await loadInsight();
 }
 

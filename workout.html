@@ -289,6 +289,15 @@
       text-align: center; font-size: 11px; color: var(--dim);
       padding: 10px 0 4px; letter-spacing: 0.3px;
     }
+    .plan-section-divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 18px 0 10px; font-size: 11px; font-weight: 900;
+      letter-spacing: 2px; color: var(--dim); text-transform: uppercase;
+    }
+    .plan-section-divider::before, .plan-section-divider::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07);
+    }
+    .plan-ex-hint { font-size: 11px; color: var(--dim); margin-top: 3px; }
   </style>
 </head>
 <body>
@@ -534,37 +543,55 @@ function showPlanScreen(day) {
   wrap.innerHTML = '<button class="finish-btn" onclick="startFromPlan()">Begin Workout &#8594;</button>';
 }
 
+function makePlanCard(ex, isSelected) {
+  const sid = sanitizeId(ex.name);
+  const lastSess = lastSessionMap[ex.name];
+  let hintStr = '';
+  if (lastSess && lastSess.weight > 0 && lastSess.sets > 0 && lastSess.reps > 0) {
+    const side = ex.isPerSide ? '/side' : '';
+    hintStr = 'Last: ' + lastSess.sets + '×' + lastSess.reps + ' @ ' + lastSess.weight + ' lbs' + side;
+  } else if (ex.lastWeight) {
+    hintStr = 'Last: ' + ex.lastWeight + ' lbs';
+  } else if (ex.defaultWeight > 0) {
+    hintStr = 'Starts ~' + ex.defaultWeight + ' lbs' + (ex.isPerSide ? '/side' : '');
+  }
+  const selClass = isSelected ? ' selected' : '';
+  return `
+  <div class="plan-ex-card${selClass}" id="plancard_${sid}" onclick="togglePlanEx('${sid}', '${ex.name.replace(/'/g, "\\'")}')">
+    <div class="plan-check">&#10003;</div>
+    <div class="plan-ex-info">
+      <div class="plan-ex-name">${ex.name}</div>
+      ${hintStr ? `<div class="plan-ex-hint">${hintStr}</div>` : ''}
+    </div>
+    <div class="plan-ex-muscle">${ex.muscleGroup}</div>
+  </div>`;
+}
+
 function renderPlanScreen(dayExercises) {
   const container = document.getElementById('mainContent');
+  const funcExercises = allExercises.filter(e => e.day === 'FUNCTIONAL');
+  const coreExercises = allExercises.filter(e => e.day === 'CORE');
+
   let html = `
     <div class="plan-header">
       <div class="plan-day-label">${currentDay} DAY</div>
-      <div class="plan-subtitle">Select exercises — tap to deselect</div>
+      <div class="plan-subtitle">Tap to deselect — or add functional & core below</div>
     </div>`;
 
-  dayExercises.forEach(ex => {
-    const sid = sanitizeId(ex.name);
-    const lastSess = lastSessionMap[ex.name];
-    let lastStr = '';
-    if (lastSess && lastSess.weight > 0 && lastSess.sets > 0 && lastSess.reps > 0) {
-      const side = ex.isPerSide ? '/side' : '';
-      lastStr = 'Last: ' + lastSess.sets + '×' + lastSess.reps + ' @ ' + lastSess.weight + ' lbs' + side;
-    } else if (ex.lastWeight) {
-      lastStr = 'Last: ' + ex.lastWeight + ' lbs';
-    }
-
-    html += `
-    <div class="plan-ex-card selected" id="plancard_${sid}" onclick="togglePlanEx('${sid}', '${ex.name.replace(/'/g, "\\'")}')">
-      <div class="plan-check">&#10003;</div>
-      <div class="plan-ex-info">
-        <div class="plan-ex-name">${ex.name}</div>
-        ${lastStr ? `<div class="plan-ex-last">${lastStr}</div>` : ''}
-      </div>
-      <div class="plan-ex-muscle">${ex.muscleGroup}</div>
-    </div>`;
-  });
+  dayExercises.forEach(ex => { html += makePlanCard(ex, true); });
 
   html += '<div class="plan-count" id="planCount">' + dayExercises.length + ' of ' + dayExercises.length + ' selected</div>';
+
+  if (funcExercises.length) {
+    html += '<div class="plan-section-divider">Add Functional</div>';
+    funcExercises.forEach(ex => { html += makePlanCard(ex, false); });
+  }
+
+  if (coreExercises.length) {
+    html += '<div class="plan-section-divider">Add Core / Abs</div>';
+    coreExercises.forEach(ex => { html += makePlanCard(ex, false); });
+  }
+
   html += '<div style="height:20px"></div>';
   container.innerHTML = html;
 }
@@ -572,22 +599,27 @@ function renderPlanScreen(dayExercises) {
 function togglePlanEx(sid, name) {
   if (selectedExNames.has(name)) {
     selectedExNames.delete(name);
-    const card = document.getElementById('plancard_' + sid);
-    if (card) card.classList.remove('selected');
+    document.getElementById('plancard_' + sid)?.classList.remove('selected');
   } else {
     selectedExNames.add(name);
-    const card = document.getElementById('plancard_' + sid);
-    if (card) card.classList.add('selected');
+    document.getElementById('plancard_' + sid)?.classList.add('selected');
   }
-  const dayExCount = allExercises.filter(e => e.day === currentDay).length;
+  const primaryCount = allExercises.filter(e => e.day === currentDay).length;
   const countEl = document.getElementById('planCount');
-  if (countEl) countEl.textContent = selectedExNames.size + ' of ' + dayExCount + ' selected';
+  if (countEl) {
+    const primarySelected = allExercises.filter(e => e.day === currentDay && selectedExNames.has(e.name)).length;
+    countEl.textContent = primarySelected + ' of ' + primaryCount + ' selected';
+  }
 }
 
 function startFromPlan() {
   planMode = false;
-  // Remove deselected exercises from the primary day only (keep supplemental days intact)
-  allExercises = allExercises.filter(e => e.day !== primaryDay || selectedExNames.has(e.name));
+  // Keep: primary day exercises that are selected + FUNCTIONAL/CORE that are explicitly selected
+  allExercises = allExercises.filter(e => {
+    if (e.day === primaryDay) return selectedExNames.has(e.name);
+    if (e.day === 'FUNCTIONAL' || e.day === 'CORE') return selectedExNames.has(e.name);
+    return false;
+  });
   // Rebuild exNameMap after filter
   exNameMap = {};
   allExercises.forEach(ex => { exNameMap[sanitizeId(ex.name)] = ex.name; });
