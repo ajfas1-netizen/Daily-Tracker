@@ -352,6 +352,7 @@ let allExercises = [];
 let exNameMap = {};       // sanitizedId → actualName
 let exerciseState = {};   // actualName → { sets: [{weight,reps,feel}], skipped: bool }
 let exercisePRs = {};     // actualName → all-time max weight
+let lastSessionMap = {};  // actualName → { sets, reps, weight } from most recent session
 let currentDay = 'CHEST';
 let primaryDay = 'CHEST';
 let timerInterval = null;
@@ -423,11 +424,37 @@ function sanitizeId(name) {
   return name.replace(/[^a-zA-Z0-9]/g, '_');
 }
 
+// ---- Build last-session map ----
+function buildLastSessionMap(history) {
+  const map = {};
+  (Array.isArray(history) ? history : []).forEach(session => {
+    const byEx = {};
+    (session.sets || []).forEach(s => {
+      if (!byEx[s.exerciseName]) byEx[s.exerciseName] = [];
+      byEx[s.exerciseName].push(s);
+    });
+    Object.entries(byEx).forEach(([name, sets]) => {
+      if (!map[name]) {
+        const repsArr = sets.map(s => parseInt(s.reps) || 0).filter(r => r > 0);
+        const avgReps = repsArr.length
+          ? Math.round(repsArr.reduce((a, b) => a + b, 0) / repsArr.length)
+          : 0;
+        const maxW = Math.max(...sets.map(s => parseFloat(s.weight) || 0));
+        map[name] = { sets: sets.length, reps: avgReps, weight: maxW };
+      }
+    });
+  });
+  return map;
+}
+
 // ---- Load ----
 async function loadWorkout() {
   try {
-    const res = await fetch(API + '?action=getNextWorkout');
-    const data = await res.json();
+    const [workoutRes, histRes] = await Promise.all([
+      fetch(API + '?action=getNextWorkout').then(r => r.json()),
+      fetch(API + '?action=getWorkoutHistory').then(r => r.json()).catch(() => [])
+    ]);
+    const data = workoutRes;
 
     if (data.error) { showError(data.error); return; }
 
@@ -437,6 +464,8 @@ async function loadWorkout() {
       showError('No exercises found. Run setupWorkoutSheets() in Apps Script editor first, then redeploy.');
       return;
     }
+
+    lastSessionMap = buildLastSessionMap(histRes);
 
     allExercises.forEach(ex => {
       exNameMap[sanitizeId(ex.name)] = ex.name;
@@ -519,7 +548,11 @@ function renderExercises(exercises) {
     const pr = exercisePRs[ex.name];
 
     let lastStr;
-    if (ex.lastWeight !== null && ex.lastWeight !== undefined && ex.lastWeight !== '') {
+    const lastSess = lastSessionMap[ex.name];
+    if (lastSess && lastSess.weight > 0 && lastSess.sets > 0 && lastSess.reps > 0) {
+      const side = ex.isPerSide ? '/side' : '';
+      lastStr = lastSess.sets + '×' + lastSess.reps + ' @ ' + lastSess.weight + ' lbs' + side;
+    } else if (ex.lastWeight !== null && ex.lastWeight !== undefined && ex.lastWeight !== '') {
       lastStr = ex.isPerSide ? ex.lastWeight + ' lbs/side' : ex.lastWeight + ' lbs';
     } else if (ex.defaultWeight) {
       lastStr = 'est. ' + ex.defaultWeight + (ex.isPerSide ? ' lbs/side' : ' lbs');

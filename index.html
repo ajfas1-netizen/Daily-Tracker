@@ -196,6 +196,45 @@
   /* ---- Section Headers ---- */
   h2 { font-size: 10px; font-weight: 700; margin: 18px 0 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 1.5px; }
 
+  /* ---- Weekly Summary ---- */
+  .week-summary-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 11px 14px; margin-bottom: 10px;
+  }
+  .ws-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); margin-bottom: 7px; }
+  .ws-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+  .ws-stat { text-align: center; padding: 2px 0; }
+  .ws-val { font-size: 18px; font-weight: 800; }
+  .ws-sub { font-size: 9px; color: var(--dim); margin-top: 2px; }
+
+  /* ---- Custom Water Modal ---- */
+  .water-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+    z-index: 200; justify-content: center; align-items: flex-end;
+  }
+  .water-modal.open { display: flex; }
+  .water-modal-inner {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px 20px 0 0; padding: 22px 20px 32px;
+    width: 100%; max-width: 480px;
+  }
+  .water-modal-title { font-size: 14px; font-weight: 700; text-align: center; margin-bottom: 16px; color: var(--text); }
+  .water-modal-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .water-oz-input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; color: var(--text); font-size: 24px; font-weight: 800; text-align: center;
+  }
+  .water-oz-input:focus { outline: none; border-color: var(--accent); }
+  .water-oz-unit { font-size: 15px; color: var(--dim); font-weight: 600; flex-shrink: 0; }
+  .water-log-btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 10px;
+    padding: 12px 20px; font-size: 15px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+  }
+  .water-cancel-btn {
+    display: block; width: 100%; background: none; border: 1px solid var(--border);
+    color: var(--dim); border-radius: 10px; padding: 11px; font-size: 14px; cursor: pointer;
+  }
+
   /* ---- Streaks ---- */
   .streak-row { display: flex; gap: 8px; margin-bottom: 10px; }
   .streak-chip {
@@ -217,6 +256,8 @@
   }
   .insight-header { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
   .insight-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--coach); }
+  .insight-refresh { margin-left: auto; background: none; border: none; color: var(--dim); font-size: 15px; cursor: pointer; padding: 0; line-height: 1; }
+  .insight-refresh:active { color: var(--coach); }
   .insight-text { font-size: 12px; color: var(--dim); line-height: 1.6; }
   .insight-text.loaded { color: var(--text); }
 
@@ -495,6 +536,25 @@
   </div>
 </div>
 
+<!-- Weekly Summary -->
+<div class="week-summary-card" id="weeklySummaryCard" style="display:none">
+  <div class="ws-title">This Week</div>
+  <div class="ws-grid">
+    <div class="ws-stat">
+      <div class="ws-val" id="wkWorkouts">—</div>
+      <div class="ws-sub">workouts</div>
+    </div>
+    <div class="ws-stat">
+      <div class="ws-val" id="wkProtein">—</div>
+      <div class="ws-sub">avg protein</div>
+    </div>
+    <div class="ws-stat">
+      <div class="ws-val" id="wkWeight">—</div>
+      <div class="ws-sub">weight change</div>
+    </div>
+  </div>
+</div>
+
 <!-- Next Workout Preview -->
 <div class="next-workout-strip" id="nextWorkoutStrip" style="display:none">
   <div class="nw-icon">&#127947;</div>
@@ -519,6 +579,7 @@
   <div class="insight-header">
     <span>⚡</span>
     <span class="insight-label">Daily Insight</span>
+    <button class="insight-refresh" onclick="refreshInsight()" title="Refresh">&#8635;</button>
   </div>
   <div class="insight-text" id="insightText"></div>
 </div>
@@ -530,6 +591,7 @@
   <div class="water-group">
     <button class="tap-btn" onclick="tapLiquid('water', this, 12)"><span class="tap-icon">💧</span><span class="sub">12 oz</span></button>
     <button class="tap-btn" onclick="tapLiquid('water', this, 24)"><span class="tap-icon">💧💧</span><span class="sub">24 oz</span></button>
+    <button class="tap-btn" onclick="openCustomWater()"><span class="tap-icon" style="font-size:20px">＋</span><span class="sub">Custom</span></button>
   </div>
   <button class="tap-btn tap-coors" onclick="tapLiquid('coors', this)"><span class="tap-icon">🍺</span><span class="sub">102 cal</span></button>
   <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)"><span class="tap-icon">🥃</span><span class="sub">97 cal</span></button>
@@ -564,6 +626,19 @@
     <span class="nav-label">Recipe</span>
   </button>
 </nav>
+
+<!-- Custom Water Modal -->
+<div class="water-modal" id="waterModal" onclick="if(event.target===this)closeCustomWater()">
+  <div class="water-modal-inner">
+    <div class="water-modal-title">Log Water</div>
+    <div class="water-modal-row">
+      <input type="number" class="water-oz-input" id="customWaterOz" inputmode="numeric" placeholder="16" min="1" max="200">
+      <span class="water-oz-unit">oz</span>
+      <button class="water-log-btn" onclick="logCustomWater()">Log</button>
+    </div>
+    <button class="water-cancel-btn" onclick="closeCustomWater()">Cancel</button>
+  </div>
+</div>
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
@@ -633,7 +708,10 @@ async function loadAll() {
     renderTotals(data.daySummary.totals);
     renderNextWorkout(data.nextWorkoutDay, data.daySummary.totals.workoutDone);
     loadWeightData();
-    if (data.recentHistory) renderStreaks(data.recentHistory);
+    if (data.recentHistory) {
+      renderStreaks(data.recentHistory);
+      renderWeeklySummary(data.recentHistory);
+    }
     loadInsight();
     document.getElementById('statusBanner').className = 'status-banner';
   } catch (err) {
@@ -664,6 +742,37 @@ function renderStreaks(history) {
   if (ws >= 3) document.getElementById('workoutStreakChip').classList.add('hot');
 }
 
+// ---- Weekly Summary ----
+function renderWeeklySummary(history) {
+  if (!history || !history.length) return;
+  const today = new Date();
+  const dow = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+  const mondayStr = monday.toLocaleDateString('en-CA');
+  const todayStr  = today.toLocaleDateString('en-CA');
+  const thisWeek  = history.filter(d => d.date >= mondayStr && d.date <= todayStr);
+  if (!thisWeek.length) return;
+
+  const workouts = thisWeek.filter(d => d.workoutDone === 'Yes').length;
+  const loggedProt = thisWeek.filter(d => (d.protein || 0) > 0);
+  const avgProt = loggedProt.length
+    ? Math.round(loggedProt.reduce((s, d) => s + d.protein, 0) / loggedProt.length) : 0;
+  const wtDays = thisWeek.filter(d => d.bodyweight).sort((a, b) => a.date.localeCompare(b.date));
+  let wtChange = null;
+  if (wtDays.length >= 2) wtChange = (wtDays[wtDays.length - 1].bodyweight - wtDays[0].bodyweight).toFixed(1);
+
+  document.getElementById('wkWorkouts').textContent = workouts;
+  document.getElementById('wkProtein').textContent  = avgProt ? avgProt + 'g' : '—';
+  const wkWt = document.getElementById('wkWeight');
+  if (wtChange !== null) {
+    wkWt.textContent = (parseFloat(wtChange) >= 0 ? '+' : '') + wtChange + ' lbs';
+    wkWt.style.color = parseFloat(wtChange) <= 0 ? 'var(--green)' : 'var(--rose)';
+    wkWt.style.fontSize = '15px';
+  }
+  document.getElementById('weeklySummaryCard').style.display = 'block';
+}
+
 // ---- Daily Insight ----
 async function loadInsight() {
   const todayStr = new Date().toLocaleDateString('en-CA');
@@ -681,7 +790,11 @@ async function loadInsight() {
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'getCoachAdvice', message: 'Give me one short motivational insight or actionable tip based on my recent progress. 2 sentences max. Be direct.' })
+      body: JSON.stringify({
+        action: 'getCoachAdvice',
+        targets,
+        message: 'Look at my actual data above and give me ONE specific observation for today. Reference real numbers from my data — protein average, workout frequency, weight trend, or streak. No generic advice. 2 sentences max.'
+      })
     });
     const data = await res.json();
     const insight = (data.reply || data.message || '').trim();
@@ -691,7 +804,37 @@ async function loadInsight() {
       textEl.classList.add('loaded');
       card.style.display = 'block';
     }
-  } catch { /* silent — insight is non-critical */ }
+  } catch { /* silent */ }
+}
+
+async function refreshInsight() {
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  localStorage.removeItem('grind_insight_' + todayStr);
+  const textEl = document.getElementById('insightText');
+  textEl.textContent = 'Regenerating…';
+  textEl.classList.remove('loaded');
+  document.getElementById('insightCard').style.display = 'block';
+  await loadInsight();
+}
+
+// ---- Custom Water ----
+function openCustomWater() {
+  document.getElementById('customWaterOz').value = '';
+  document.getElementById('waterModal').classList.add('open');
+  setTimeout(() => document.getElementById('customWaterOz').focus(), 80);
+}
+function closeCustomWater() {
+  document.getElementById('waterModal').classList.remove('open');
+}
+async function logCustomWater() {
+  const oz = parseInt(document.getElementById('customWaterOz').value);
+  if (!oz || oz < 1 || oz > 200) { alert('Enter a valid amount (1–200 oz).'); return; }
+  closeCustomWater();
+  try {
+    await apiPost({ action: 'logLiquid', type: 'water', amount: oz });
+    await refreshTotalsAndLog();
+    showStatus(oz + ' oz water logged', 'success');
+  } catch { showStatus('Failed to log water', 'error'); }
 }
 
 // ---- Render Hero Card ----
