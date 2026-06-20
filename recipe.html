@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Recipe Builder</title>
-<!-- v1 -->
+<title>The Forge – The Grind</title>
+<!-- v2 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b1120">
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root {
     --bg: #0b1120;
@@ -58,16 +59,48 @@
     flex-shrink: 0;
   }
   .header-title {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.3px;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #c8ff00;
   }
 
   .mode-tabs {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 6px;
     margin-bottom: 20px;
+  }
+
+  /* ---- Scanner Overlay ---- */
+  .scanner-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.96);
+    z-index: 300; flex-direction: column;
+  }
+  .scanner-overlay.open { display: flex; }
+  .scanner-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 18px; flex-shrink: 0;
+  }
+  .scanner-title { font-size: 16px; font-weight: 700; color: var(--text); }
+  .scanner-close {
+    background: var(--card); border: 1px solid var(--border); border-radius: 50%;
+    color: var(--dim); font-size: 16px; width: 36px; height: 36px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #forgeQrReader { flex: 1; }
+  #forgeQrReader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+  .scan-status {
+    text-align: center; padding: 14px 18px 32px;
+    font-size: 13px; color: var(--dim); flex-shrink: 0;
+  }
+  .scan-launch-card { text-align: center; padding: 40px 24px; }
+  .scan-launch-icon { font-size: 52px; margin-bottom: 14px; }
+  .scan-launch-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .scan-launch-sub { font-size: 13px; color: var(--dim); margin-bottom: 24px; line-height: 1.5; }
+  .btn-scan-launch {
+    background: var(--accent); color: #fff; border: none; border-radius: 14px;
+    padding: 15px 32px; font-size: 16px; font-weight: 700; cursor: pointer;
   }
   .mode-tab {
     background: var(--card);
@@ -353,8 +386,8 @@
 <body>
 
 <div class="header">
-  <a href="index.html" class="back-btn">&#8592; Grind</a>
-  <div class="header-title">Recipe Builder</div>
+  <a href="index.html" class="back-btn">&#8592; THE GRIND</a>
+  <div class="header-title">THE FORGE</div>
 </div>
 
 <!-- Mode Tabs -->
@@ -369,7 +402,10 @@
     <span class="tab-icon">🔗</span>URL
   </button>
   <button class="mode-tab" onclick="setMode('ordered')" id="tab-ordered">
-    <span class="tab-icon">🥡</span>Ordered Out
+    <span class="tab-icon">🥡</span>Ordered
+  </button>
+  <button class="mode-tab" onclick="setMode('scan')" id="tab-scan">
+    <span class="tab-icon">📷</span>Scan UPC
   </button>
 </div>
 
@@ -443,6 +479,26 @@
   </div>
 </div>
 
+<!-- Scan Mode -->
+<div id="panel-scan" class="hidden">
+  <div class="card scan-launch-card">
+    <div class="scan-launch-icon">📷</div>
+    <div class="scan-launch-title">Scan a Barcode</div>
+    <div class="scan-launch-sub">Point your camera at any UPC barcode — we'll pull the nutrition facts automatically so you can save it to your library or log it today.</div>
+    <button class="btn-scan-launch" onclick="openForgeScanner()">Open Camera</button>
+  </div>
+</div>
+
+<!-- Scanner Overlay -->
+<div class="scanner-overlay" id="forgeScannerOverlay">
+  <div class="scanner-header">
+    <span class="scanner-title">Scan Barcode</span>
+    <button class="scanner-close" onclick="closeForgeScanner()">&#10005;</button>
+  </div>
+  <div id="forgeQrReader"></div>
+  <div class="scan-status" id="forgeScanStatus">Point camera at a barcode</div>
+</div>
+
 <!-- Loading -->
 <div id="loading-card" class="loading-card hidden">
   <div class="spinner"></div>
@@ -503,13 +559,15 @@ const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG8
 let currentMode = 'cook';
 let portions = 4;
 let pendingResult = null;
+let forgeScanner = null;
 
 function setMode(mode) {
   currentMode = mode;
-  ['cook','paste','url','ordered'].forEach(m => {
+  ['cook','paste','url','ordered','scan'].forEach(m => {
     document.getElementById('panel-' + m).classList.toggle('hidden', m !== mode);
     document.getElementById('tab-' + m).classList.toggle('active', m === mode);
   });
+  if (mode !== 'scan') closeForgeScanner();
   hideResults();
   portions = (mode === 'ordered') ? 1 : 4;
   syncPortions();
@@ -520,6 +578,74 @@ function syncPortions() {
     const el = document.getElementById('portions-val-' + suffix);
     if (el) el.textContent = portions;
   });
+}
+
+// ---- Forge Barcode Scanner ----
+function openForgeScanner() {
+  document.getElementById('forgeScannerOverlay').classList.add('open');
+  document.getElementById('forgeScanStatus').textContent = 'Point camera at a barcode';
+  if (forgeScanner) return;
+  forgeScanner = new Html5Qrcode('forgeQrReader');
+  forgeScanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 280, height: 160 }, formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39
+      ]
+    },
+    (decodedText) => onForgeBarcodeScanned(decodedText),
+    () => {}
+  ).catch(err => {
+    document.getElementById('forgeScanStatus').textContent = 'Camera error: ' + err;
+  });
+}
+
+function closeForgeScanner() {
+  document.getElementById('forgeScannerOverlay').classList.remove('open');
+  if (forgeScanner) {
+    forgeScanner.stop().catch(() => {}).finally(() => { forgeScanner = null; });
+  }
+}
+
+async function onForgeBarcodeScanned(barcode) {
+  closeForgeScanner();
+  document.getElementById('loading-card').classList.remove('hidden');
+  document.getElementById('loading-text').textContent = 'Looking up barcode...';
+  document.getElementById('confirm-card').classList.add('hidden');
+  document.getElementById('success-card').classList.add('hidden');
+
+  try {
+    const r = await fetch('https://world.openfoodfacts.org/api/v0/product/' + barcode + '.json');
+    const data = await r.json();
+    document.getElementById('loading-card').classList.add('hidden');
+
+    if (data.status !== 1 || !data.product) {
+      showToast('Barcode not found in food database', 'error');
+      return;
+    }
+    const p = data.product;
+    const n = p.nutriments || {};
+    showConfirmation({
+      name:         p.product_name || p.generic_name || ('Scanned Item ' + barcode),
+      protein:      Math.round(n['proteins_serving']       || n['proteins_100g']       || 0),
+      calories:     Math.round(n['energy-kcal_serving']    || n['energy-kcal_100g']    || 0),
+      carbs:        Math.round(n['carbohydrates_serving']  || n['carbohydrates_100g']  || 0),
+      fat:          Math.round(n['fat_serving']            || n['fat_100g']            || 0),
+      sugar:        Math.round(n['sugars_serving']         || n['sugars_100g']         || 0),
+      sodium:       Math.round((n['sodium_serving']        || n['sodium_100g']         || 0) * 1000),
+      servingLabel: p.serving_description || p.serving_size || '1 serving',
+      confidence:   'high',
+      notes:        'Scanned from barcode ' + barcode + (p.brands ? ' · ' + p.brands : ''),
+      mode:         'scan'
+    });
+  } catch {
+    document.getElementById('loading-card').classList.add('hidden');
+    showToast('Network error — could not reach food database', 'error');
+  }
 }
 
 function changePortions(delta) {
@@ -736,6 +862,7 @@ function showSuccess(title, sub) {
 }
 
 function resetBuilder() {
+  closeForgeScanner();
   hideResults();
   ['cook-name','cook-desc','paste-text','paste-name','url-input','url-name','ordered-desc','ordered-name'].forEach(id => {
     const el = document.getElementById(id);
