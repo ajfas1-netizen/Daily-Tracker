@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>The Grind – Workout</title>
-  <!-- v5 -->
+  <!-- v6 -->
   <style>
     :root {
       --bg: #0e0f11;
@@ -263,17 +263,17 @@
 
     .plan-ex-card {
       display: flex; align-items: center; gap: 12px;
-      background: var(--card); border: 1px solid rgba(255,255,255,0.05);
+      background: var(--card); border: 1px solid rgba(255,255,255,0.08);
       border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
-      cursor: pointer; transition: all 0.15s; opacity: 0.35;
+      cursor: pointer; transition: all 0.15s;
     }
     .plan-ex-card.selected {
-      opacity: 1; border-color: rgba(200,255,0,0.22);
-      background: rgba(200,255,0,0.04);
+      border-color: rgba(200,255,0,0.3);
+      background: rgba(200,255,0,0.05);
     }
     .plan-check {
       width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
-      border: 2px solid rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.2);
       display: flex; align-items: center; justify-content: center;
       font-size: 13px; font-weight: 900; color: transparent; transition: all 0.15s;
     }
@@ -283,7 +283,7 @@
     .plan-ex-last { font-size: 11px; color: var(--dim); margin-top: 3px; }
     .plan-ex-muscle {
       font-size: 10px; font-weight: 700; color: var(--dim);
-      background: rgba(255,255,255,0.06); border-radius: 6px;
+      background: rgba(255,255,255,0.07); border-radius: 6px;
       padding: 3px 8px; flex-shrink: 0;
     }
     .plan-count {
@@ -293,16 +293,16 @@
     .plan-section-divider {
       display: flex; align-items: center; gap: 10px;
       margin: 18px 0 10px; font-size: 11px; font-weight: 900;
-      letter-spacing: 2px; color: var(--dim); text-transform: uppercase;
+      letter-spacing: 2px; color: #c8ff00; text-transform: uppercase;
     }
     .plan-section-divider::before, .plan-section-divider::after {
-      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07);
+      content: ''; flex: 1; height: 1px; background: rgba(200,255,0,0.15);
     }
     .plan-ex-hint { font-size: 11px; color: var(--dim); margin-top: 3px; }
-    .plan-ex-desc { font-size: 11px; color: #5a6070; margin-top: 2px; font-style: italic; }
+    .plan-ex-desc { font-size: 11px; color: #9aa3b2; margin-top: 2px; font-style: italic; }
     .plan-info-btn {
-      background: none; border: 1px solid rgba(255,255,255,0.12); border-radius: 50%;
-      color: var(--dim); font-size: 12px; font-weight: 700;
+      background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 50%;
+      color: #60a5fa; font-size: 12px; font-weight: 700;
       width: 22px; height: 22px; line-height: 20px; text-align: center;
       cursor: pointer; flex-shrink: 0; padding: 0; margin-left: 6px;
       font-style: italic; font-family: serif;
