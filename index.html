@@ -8,17 +8,18 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="The Grind">
-<meta name="theme-color" content="#0b1120">
+<meta name="theme-color" content="#0d0e10">
 <link rel="manifest" href="manifest.json">
 <style>
   :root {
-    --bg: #0b1120;
-    --card: #111a2e;
-    --card2: #162036;
-    --border: #1e2d4a;
-    --text: #e4e8f1;
-    --dim: #6b7a99;
+    --bg: #0d0e10;
+    --card: #191b21;
+    --card2: #21232a;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0f0f0;
+    --dim: #7a808e;
     --accent: #3b82f6;
+    --water: #3b82f6;
     --accent-glow: rgba(59,130,246,0.22);
     --green: #22c55e;
     --green-glow: rgba(34,197,94,0.22);
@@ -60,10 +61,9 @@
   }
   .header-center { text-align: center; }
   .header h1 {
-    font-size: 22px; font-weight: 800;
-    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    font-size: 22px; font-weight: 900; letter-spacing: 4px;
+    background: linear-gradient(135deg, #c8ff00, #a3e635);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    letter-spacing: 0.5px; line-height: 1.1;
   }
   .header .date { font-size: 11px; color: var(--dim); margin-top: 1px; }
   .icon-btn {
@@ -135,12 +135,12 @@
   }
   .ms-label { font-size: 8px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
   .ms-value { font-size: 14px; font-weight: 800; }
-  .ms-value.water  { color: var(--accent); }
+  .ms-value.water  { color: var(--water); }
   .ms-value.coffee { color: #a8a29e; }
   .ms-value.done   { color: var(--lime); }
   .ms-value.rest   { color: var(--dim); }
   .water-mini-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 5px; overflow: hidden; }
-  .water-mini-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.5s ease; }
+  .water-mini-fill { height: 100%; border-radius: 2px; background: var(--water); transition: width 0.5s ease; }
   .water-mini-fill.hit { background: var(--green); }
 
   /* Drink row */
@@ -361,7 +361,7 @@
   .bottom-nav {
     position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 480px;
-    background: rgba(11,17,32,0.97); border-top: 1px solid var(--border);
+    background: rgba(13,14,16,0.97); border-top: 1px solid var(--border);
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     display: grid; grid-template-columns: repeat(3, 1fr);
     padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px)); z-index: 100;
@@ -404,7 +404,7 @@
 <div class="header">
   <button class="icon-btn" onclick="openSettings()" title="Settings">&#9881;</button>
   <div class="header-center">
-    <h1>The Grind</h1>
+    <h1>THE GRIND</h1>
     <div class="date" id="headerDate"></div>
   </div>
   <div class="header-right">

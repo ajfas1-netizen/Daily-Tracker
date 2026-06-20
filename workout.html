@@ -41,7 +41,7 @@
       background: none; border: none; color: var(--dim);
       font-size: 22px; cursor: pointer; padding: 2px 6px 2px 0; line-height: 1;
     }
-    .header-title { font-size: 15px; font-weight: 700; }
+    .header-title { font-size: 13px; font-weight: 900; letter-spacing: 3px; color: #c8ff00; }
     .header-sub { font-size: 11px; color: var(--accent); font-weight: 700; letter-spacing: 1px; margin-top: 1px; }
     .timer { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent); }
 
@@ -254,6 +254,41 @@
     }
     .btn-cancel { background: rgba(255,255,255,0.08); color: var(--text); }
     .btn-confirm { background: var(--accent); color: #000; }
+
+    /* ---- Plan Mode ---- */
+    .plan-header { text-align: center; padding: 4px 0 16px; }
+    .plan-day-label { font-size: 13px; font-weight: 900; letter-spacing: 3px; color: var(--accent); }
+    .plan-subtitle { font-size: 11px; color: var(--dim); margin-top: 4px; }
+
+    .plan-ex-card {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--card); border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+      cursor: pointer; transition: all 0.15s; opacity: 0.35;
+    }
+    .plan-ex-card.selected {
+      opacity: 1; border-color: rgba(200,255,0,0.22);
+      background: rgba(200,255,0,0.04);
+    }
+    .plan-check {
+      width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 900; color: transparent; transition: all 0.15s;
+    }
+    .plan-ex-card.selected .plan-check { background: var(--accent); border-color: var(--accent); color: #000; }
+    .plan-ex-info { flex: 1; min-width: 0; }
+    .plan-ex-name { font-size: 14px; font-weight: 700; }
+    .plan-ex-last { font-size: 11px; color: var(--dim); margin-top: 3px; }
+    .plan-ex-muscle {
+      font-size: 10px; font-weight: 700; color: var(--dim);
+      background: rgba(255,255,255,0.06); border-radius: 6px;
+      padding: 3px 8px; flex-shrink: 0;
+    }
+    .plan-count {
+      text-align: center; font-size: 11px; color: var(--dim);
+      padding: 10px 0 4px; letter-spacing: 0.3px;
+    }
   </style>
 </head>
 <body>
@@ -263,7 +298,7 @@
   <div class="header-left">
     <button class="back-btn" onclick="goHome()">&#8592;</button>
     <div>
-      <div class="header-title">The Grind</div>
+      <div class="header-title">THE GRIND</div>
       <div class="header-sub" id="headerDay">WORKOUT</div>
     </div>
   </div>
@@ -357,6 +392,8 @@ let currentDay = 'CHEST';
 let primaryDay = 'CHEST';
 let timerInterval = null;
 let startTime = null;
+let planMode = true;
+let selectedExNames = new Set();
 
 // ---- Workout Timer ----
 function startTimer() {
@@ -476,12 +513,90 @@ async function loadWorkout() {
 
     primaryDay = data.nextDay || 'CHEST';
     currentDay = primaryDay;
-    selectDay(currentDay);
-    document.getElementById('finishWrap').style.display = 'block';
-    startTimer();
+    showPlanScreen(primaryDay);
   } catch (err) {
     showError('Could not load workout. Check your connection and try again.');
   }
+}
+
+function showPlanScreen(day) {
+  planMode = true;
+  document.getElementById('dayTabs').style.display = 'none';
+  document.getElementById('headerDay').textContent = day + ' DAY';
+
+  const dayExercises = allExercises.filter(e => e.day === day);
+  selectedExNames = new Set(dayExercises.map(e => e.name));
+
+  renderPlanScreen(dayExercises);
+
+  const wrap = document.getElementById('finishWrap');
+  wrap.style.display = 'block';
+  wrap.innerHTML = '<button class="finish-btn" onclick="startFromPlan()">Begin Workout &#8594;</button>';
+}
+
+function renderPlanScreen(dayExercises) {
+  const container = document.getElementById('mainContent');
+  let html = `
+    <div class="plan-header">
+      <div class="plan-day-label">${currentDay} DAY</div>
+      <div class="plan-subtitle">Select exercises — tap to deselect</div>
+    </div>`;
+
+  dayExercises.forEach(ex => {
+    const sid = sanitizeId(ex.name);
+    const lastSess = lastSessionMap[ex.name];
+    let lastStr = '';
+    if (lastSess && lastSess.weight > 0 && lastSess.sets > 0 && lastSess.reps > 0) {
+      const side = ex.isPerSide ? '/side' : '';
+      lastStr = 'Last: ' + lastSess.sets + '×' + lastSess.reps + ' @ ' + lastSess.weight + ' lbs' + side;
+    } else if (ex.lastWeight) {
+      lastStr = 'Last: ' + ex.lastWeight + ' lbs';
+    }
+
+    html += `
+    <div class="plan-ex-card selected" id="plancard_${sid}" onclick="togglePlanEx('${sid}', '${ex.name.replace(/'/g, "\\'")}')">
+      <div class="plan-check">&#10003;</div>
+      <div class="plan-ex-info">
+        <div class="plan-ex-name">${ex.name}</div>
+        ${lastStr ? `<div class="plan-ex-last">${lastStr}</div>` : ''}
+      </div>
+      <div class="plan-ex-muscle">${ex.muscleGroup}</div>
+    </div>`;
+  });
+
+  html += '<div class="plan-count" id="planCount">' + dayExercises.length + ' of ' + dayExercises.length + ' selected</div>';
+  html += '<div style="height:20px"></div>';
+  container.innerHTML = html;
+}
+
+function togglePlanEx(sid, name) {
+  if (selectedExNames.has(name)) {
+    selectedExNames.delete(name);
+    const card = document.getElementById('plancard_' + sid);
+    if (card) card.classList.remove('selected');
+  } else {
+    selectedExNames.add(name);
+    const card = document.getElementById('plancard_' + sid);
+    if (card) card.classList.add('selected');
+  }
+  const dayExCount = allExercises.filter(e => e.day === currentDay).length;
+  const countEl = document.getElementById('planCount');
+  if (countEl) countEl.textContent = selectedExNames.size + ' of ' + dayExCount + ' selected';
+}
+
+function startFromPlan() {
+  planMode = false;
+  // Remove deselected exercises from the primary day only (keep supplemental days intact)
+  allExercises = allExercises.filter(e => e.day !== primaryDay || selectedExNames.has(e.name));
+  // Rebuild exNameMap after filter
+  exNameMap = {};
+  allExercises.forEach(ex => { exNameMap[sanitizeId(ex.name)] = ex.name; });
+
+  document.getElementById('dayTabs').style.display = 'flex';
+  document.getElementById('finishWrap').innerHTML = '<button class="finish-btn" onclick="confirmFinish()">Finish Workout</button>';
+  selectDay(currentDay);
+  document.getElementById('finishWrap').style.display = 'block';
+  startTimer();
 }
 
 function showError(msg) {

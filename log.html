@@ -6,12 +6,12 @@
   <title>The Grind – Today's Log</title>
   <style>
     :root {
-      --bg: #0b1120;
-      --card: #111a2e;
-      --card2: #162036;
-      --border: #1e2d4a;
-      --text: #e4e8f1;
-      --dim: #6b7a99;
+      --bg: #0d0e10;
+      --card: #191b21;
+      --card2: #21232a;
+      --border: rgba(255,255,255,0.08);
+      --text: #f0f0f0;
+      --dim: #7a808e;
       --accent: #3b82f6;
       --green: #22c55e;
       --red: #ef4444;
@@ -29,7 +29,7 @@
 
     /* ---- Header ---- */
     .header {
-      background: rgba(11,17,32,0.97);
+      background: rgba(13,14,16,0.97);
       border-bottom: 1px solid var(--border);
       padding: 12px 16px;
       display: flex; justify-content: space-between; align-items: center;
@@ -41,7 +41,7 @@
       background: none; border: none; color: var(--dim);
       font-size: 22px; cursor: pointer; padding: 2px 6px 2px 0; line-height: 1;
     }
-    .header-title { font-size: 15px; font-weight: 700; }
+    .header-title { font-size: 13px; font-weight: 900; letter-spacing: 3px; color: #c8ff00; }
     .header-sub {
       font-size: 11px; color: var(--rose); font-weight: 700;
       letter-spacing: 1px; margin-top: 1px;
@@ -146,7 +146,7 @@
   <div class="header-left">
     <button class="back-btn" onclick="window.location.href='index.html'">&#8592;</button>
     <div>
-      <div class="header-title">The Grind <span id="entryCount"></span></div>
+      <div class="header-title">THE GRIND <span id="entryCount"></span></div>
       <div class="header-sub">TODAY'S LOG</div>
     </div>
   </div>
