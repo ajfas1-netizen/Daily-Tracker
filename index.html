@@ -34,11 +34,6 @@
     --emerald-glow: rgba(16,185,129,0.18);
     --rose: #fb7185;
     --rose-glow: rgba(251,113,133,0.18);
-    --coffee-bg: linear-gradient(135deg, #5d4037, #8d6e63);
-    --water-bg: linear-gradient(135deg, #1d4ed8, #3b82f6);
-    --coors-bg: linear-gradient(135deg, #d97706, #f59e0b);
-    --coors-text: #1a1a1a;
-    --bourbon-bg: linear-gradient(135deg, #b91c1c, #dc2626);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -201,11 +196,35 @@
   /* ---- Section Headers ---- */
   h2 { font-size: 10px; font-weight: 700; margin: 18px 0 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 1.5px; }
 
+  /* ---- Streaks ---- */
+  .streak-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .streak-chip {
+    flex: 1; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .streak-icon { font-size: 18px; flex-shrink: 0; }
+  .streak-num { font-size: 20px; font-weight: 800; }
+  .streak-label { font-size: 10px; color: var(--dim); line-height: 1.3; }
+  .streak-chip.hot { border-color: rgba(251,113,133,0.4); }
+  .streak-chip.hot .streak-num { color: var(--rose); }
+
+  /* ---- Daily Insight ---- */
+  .insight-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 3px solid var(--coach); border-radius: 12px;
+    padding: 11px 14px; margin-bottom: 12px;
+  }
+  .insight-header { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  .insight-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--coach); }
+  .insight-text { font-size: 12px; color: var(--dim); line-height: 1.6; }
+  .insight-text.loaded { color: var(--text); }
+
   /* ---- Quick Tap ---- */
   .quick-taps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .tap-btn {
-    border: none; border-radius: 14px; padding: 17px 10px;
-    font-size: 15px; font-weight: 700; cursor: pointer; color: #fff;
+    background: var(--card2); border: 1px solid var(--border); border-radius: 14px; padding: 17px 10px;
+    font-size: 15px; font-weight: 700; cursor: pointer; color: var(--text);
     position: relative; overflow: hidden; transition: transform 0.1s; text-align: center;
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   }
@@ -213,12 +232,11 @@
   .tap-btn:disabled { opacity: 0.5; }
   .tap-icon { display: block; font-size: 26px; margin-bottom: 4px; line-height: 1; }
   .tap-btn .sub { display: block; font-size: 10px; font-weight: 400; margin-top: 2px; opacity: 0.7; }
-  .tap-coffee  { background: var(--coffee-bg); }
-  .tap-coors   { background: var(--coors-bg); color: var(--coors-text); }
-  .tap-coors .sub { color: var(--coors-text); opacity: 0.6; }
-  .tap-bourbon { background: var(--bourbon-bg); }
+  .tap-coffee  { border-color: rgba(168,162,158,0.45); }
+  .tap-coors   { border-color: rgba(245,158,11,0.45); }
+  .tap-bourbon { border-color: rgba(248,113,133,0.45); }
   .water-group { display: flex; gap: 7px; }
-  .water-group .tap-btn { flex: 1; background: var(--water-bg); padding: 17px 6px; font-size: 13px; }
+  .water-group .tap-btn { flex: 1; padding: 17px 6px; font-size: 13px; border-color: rgba(59,130,246,0.45); }
   .tap-btn.flash::after {
     content: ''; position: absolute; inset: 0;
     background: rgba(255,255,255,0.28);
@@ -459,6 +477,24 @@
   </div>
 </div>
 
+<!-- Streak Chips -->
+<div class="streak-row" id="streakRow" style="display:none">
+  <div class="streak-chip" id="proteinStreakChip">
+    <span class="streak-icon">🔥</span>
+    <div>
+      <div class="streak-num" id="proteinStreakNum">0</div>
+      <div class="streak-label">day protein<br>streak</div>
+    </div>
+  </div>
+  <div class="streak-chip" id="workoutStreakChip">
+    <span class="streak-icon">💪</span>
+    <div>
+      <div class="streak-num" id="workoutStreakNum">0</div>
+      <div class="streak-label">day workout<br>streak</div>
+    </div>
+  </div>
+</div>
+
 <!-- Next Workout Preview -->
 <div class="next-workout-strip" id="nextWorkoutStrip" style="display:none">
   <div class="nw-icon">&#127947;</div>
@@ -476,6 +512,15 @@
   <span class="unit">lbs</span>
   <button class="weight-save-btn" id="weightSaveBtn" onclick="saveWeight()">Log</button>
   <span class="weight-logged-badge" id="weightToday"></span>
+</div>
+
+<!-- Daily Insight -->
+<div class="insight-card" id="insightCard" style="display:none">
+  <div class="insight-header">
+    <span>⚡</span>
+    <span class="insight-label">Daily Insight</span>
+  </div>
+  <div class="insight-text" id="insightText"></div>
 </div>
 
 <!-- Quick Log -->
@@ -588,11 +633,65 @@ async function loadAll() {
     renderTotals(data.daySummary.totals);
     renderNextWorkout(data.nextWorkoutDay, data.daySummary.totals.workoutDone);
     loadWeightData();
+    if (data.recentHistory) renderStreaks(data.recentHistory);
+    loadInsight();
     document.getElementById('statusBanner').className = 'status-banner';
   } catch (err) {
     showStatus('Failed to connect. Check your internet.', 'error');
     console.error(err);
   }
+}
+
+// ---- Streaks ----
+function renderStreaks(history) {
+  if (!history || !history.length) return;
+  const sorted = [...history].sort((a, b) => b.date.localeCompare(a.date));
+  let ps = 0, ws = 0, protBroken = false, workBroken = false, prevDate = null;
+  for (const day of sorted) {
+    if (prevDate !== null) {
+      const diff = Math.round((new Date(prevDate + 'T12:00:00') - new Date(day.date + 'T12:00:00')) / 86400000);
+      if (diff > 1) { protBroken = true; workBroken = true; }
+    }
+    if (!protBroken) { if ((day.protein || 0) >= targets.protein) ps++; else protBroken = true; }
+    if (!workBroken) { if (day.workoutDone === 'Yes') ws++; else workBroken = true; }
+    if (protBroken && workBroken) break;
+    prevDate = day.date;
+  }
+  document.getElementById('proteinStreakNum').textContent = ps;
+  document.getElementById('workoutStreakNum').textContent = ws;
+  if (ps > 0 || ws > 0) document.getElementById('streakRow').style.display = 'flex';
+  if (ps >= 3) document.getElementById('proteinStreakChip').classList.add('hot');
+  if (ws >= 3) document.getElementById('workoutStreakChip').classList.add('hot');
+}
+
+// ---- Daily Insight ----
+async function loadInsight() {
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const key = 'grind_insight_' + todayStr;
+  const cached = localStorage.getItem(key);
+  const card = document.getElementById('insightCard');
+  const textEl = document.getElementById('insightText');
+  if (cached) {
+    textEl.textContent = cached;
+    textEl.classList.add('loaded');
+    card.style.display = 'block';
+    return;
+  }
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'getCoachAdvice', message: 'Give me one short motivational insight or actionable tip based on my recent progress. 2 sentences max. Be direct.' })
+    });
+    const data = await res.json();
+    const insight = (data.reply || data.message || '').trim();
+    if (insight) {
+      localStorage.setItem(key, insight);
+      textEl.textContent = insight;
+      textEl.classList.add('loaded');
+      card.style.display = 'block';
+    }
+  } catch { /* silent — insight is non-critical */ }
 }
 
 // ---- Render Hero Card ----

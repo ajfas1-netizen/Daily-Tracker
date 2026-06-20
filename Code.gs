@@ -934,8 +934,25 @@ function getLastWeightsForAllExercises() {
   return map;
 }
 
+// ---- getMaxWeightsForAllExercises ----
+// Returns map of exerciseName → all-time max weight (personal record).
+function getMaxWeightsForAllExercises() {
+  const sheet = getSheet('WorkoutSessions');
+  if (!sheet) return {};
+  const data = sheet.getDataRange().getValues();
+  const map = {};
+  for (let i = 1; i < data.length; i++) {
+    const name   = data[i][3];
+    const weight = parseFloat(data[i][5]) || 0;
+    if (name && weight > 0) {
+      if (!map[name] || weight > map[name]) map[name] = weight;
+    }
+  }
+  return map;
+}
+
 // ---- getNextWorkout ----
-// Returns all exercises (with lastWeight) and the next day in rotation.
+// Returns all exercises (with lastWeight + prWeight) and the next day in rotation.
 function getNextWorkout() {
   try {
     const rotation = ['CHEST', 'PULL', 'SHOULDERS', 'LEGS'];
@@ -962,8 +979,10 @@ function getNextWorkout() {
 
     const exercises = getExerciseLibrary();
     const lastWeights = getLastWeightsForAllExercises();
+    const prWeights   = getMaxWeightsForAllExercises();
     exercises.forEach(ex => {
       ex.lastWeight = lastWeights.hasOwnProperty(ex.name) ? lastWeights[ex.name] : null;
+      ex.prWeight   = prWeights.hasOwnProperty(ex.name)   ? prWeights[ex.name]   : null;
     });
 
     return { nextDay, exercises, lastDay };
@@ -1080,7 +1099,8 @@ function getHomeData(dateParam) {
     }
   } catch (e) { /* ignore */ }
 
-  return { foods, daySummary, yesterday, nextWorkoutDay: nextDay };
+  const recentHistory = getSummaryHistory().slice(-30);
+  return { foods, daySummary, yesterday, nextWorkoutDay: nextDay, recentHistory };
 }
 
 // ---- deleteLogEntry ----

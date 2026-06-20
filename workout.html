@@ -97,8 +97,14 @@
       background: rgba(255,255,255,0.06); border-radius: 6px;
       padding: 3px 8px; margin-left: 10px; white-space: nowrap; flex-shrink: 0;
     }
-    .ex-last { font-size: 12px; color: var(--dim); margin-bottom: 12px; }
-    .ex-last span { color: var(--accent); font-weight: 600; }
+    .ex-last { font-size: 12px; color: var(--dim); margin-bottom: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .ex-last .last-val { color: var(--accent); font-weight: 600; }
+    .ex-pr { color: #a78bfa; font-weight: 600; }
+    .ex-pr-badge {
+      display: none; background: rgba(200,255,0,0.15); border: 1px solid var(--accent);
+      color: var(--accent); font-size: 10px; font-weight: 800;
+      padding: 2px 7px; border-radius: 6px; letter-spacing: 0.5px;
+    }
 
     /* ---- Set Rows ---- */
     .sets-container { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
@@ -108,7 +114,9 @@
       border: 1px solid rgba(255,255,255,0.05);
       border-radius: 10px;
       padding: 9px 10px;
+      transition: border-color 0.2s;
     }
+    .set-row.pr-set { border-color: rgba(200,255,0,0.3); }
     .set-row-top {
       display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
     }
@@ -158,10 +166,33 @@
     }
     .skip-btn.active { color: var(--accent); border-color: var(--accent); }
 
+    /* ---- Rest Timer Bar ---- */
+    .rest-bar {
+      position: fixed; bottom: 74px;
+      left: 50%; transform: translateX(-50%);
+      width: calc(100% - 24px); max-width: 516px;
+      background: rgba(14,15,17,0.97); border: 1px solid var(--accent);
+      border-radius: 14px; padding: 10px 14px;
+      display: none; align-items: center; gap: 10px;
+      z-index: 45; box-shadow: 0 0 24px rgba(200,255,0,0.14);
+      backdrop-filter: blur(8px);
+    }
+    .rest-countdown-wrap { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+    .rest-time { font-size: 22px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1; }
+    .rest-label-sm { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .rest-progress-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+    .rest-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 1s linear; }
+    .rest-btn {
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px; color: var(--text); font-size: 11px; font-weight: 700;
+      padding: 6px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+    .rest-btn:active { background: rgba(255,255,255,0.15); }
+
     /* ---- Finish Button ---- */
     .finish-wrap {
       position: fixed; bottom: 0; left: 0; right: 0;
-      padding: 14px 16px 20px;
+      padding: 10px 16px 18px;
       background: linear-gradient(to top, var(--bg) 70%, transparent);
       z-index: 40;
     }
@@ -192,7 +223,8 @@
     .success-screen.visible { display: block; }
     .success-icon { font-size: 52px; margin-bottom: 12px; }
     .success-title { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
-    .success-day { font-size: 13px; color: var(--accent); font-weight: 700; letter-spacing: 1.5px; margin-bottom: 32px; }
+    .success-day { font-size: 13px; color: var(--accent); font-weight: 700; letter-spacing: 1.5px; margin-bottom: 16px; }
+    .success-pr-line { font-size: 16px; font-weight: 800; color: var(--accent); margin-bottom: 24px; min-height: 24px; }
     .success-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 32px; }
     .stat-box { background: var(--card); border-radius: 12px; padding: 16px 12px; }
     .stat-val { font-size: 26px; font-weight: 800; color: var(--accent); line-height: 1; }
@@ -261,6 +293,7 @@
   <div class="success-icon">&#128170;</div>
   <div class="success-title">Workout Done!</div>
   <div class="success-day" id="successDay"></div>
+  <div class="success-pr-line" id="successPRLine"></div>
   <div class="success-grid">
     <div class="stat-box">
       <div class="stat-val" id="successTime">—</div>
@@ -280,6 +313,19 @@
     </div>
   </div>
   <button class="home-btn" onclick="goHome()">&#8592; Back to The Grind</button>
+</div>
+
+<!-- Rest Timer Bar -->
+<div class="rest-bar" id="restBar">
+  <div class="rest-countdown-wrap">
+    <div class="rest-time" id="restCountdown">1:30</div>
+    <div class="rest-label-sm">Rest</div>
+  </div>
+  <div class="rest-progress-wrap">
+    <div class="rest-progress-fill" id="restProgressFill" style="width:100%"></div>
+  </div>
+  <button class="rest-btn" onclick="addRestTime(30)">+30s</button>
+  <button class="rest-btn" onclick="skipRest()">Skip</button>
 </div>
 
 <!-- Finish Button -->
@@ -305,12 +351,13 @@ const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG8
 let allExercises = [];
 let exNameMap = {};       // sanitizedId → actualName
 let exerciseState = {};   // actualName → { sets: [{weight,reps,feel}], skipped: bool }
+let exercisePRs = {};     // actualName → all-time max weight
 let currentDay = 'CHEST';
-let primaryDay = 'CHEST'; // rotation-determined day (never changes after load)
+let primaryDay = 'CHEST';
 let timerInterval = null;
 let startTime = null;
 
-// ---- Timer ----
+// ---- Workout Timer ----
 function startTimer() {
   startTime = Date.now();
   timerInterval = setInterval(tickTimer, 1000);
@@ -327,6 +374,48 @@ function formatTime(secs) {
 function getElapsedStr() {
   if (!startTime) return '0:00';
   return formatTime(Math.floor((Date.now() - startTime) / 1000));
+}
+
+// ---- Rest Timer ----
+let restInterval = null;
+let restTimeLeft = 0;
+const REST_DEFAULT = 90;
+
+function startRestTimer() {
+  clearInterval(restInterval);
+  restTimeLeft = REST_DEFAULT;
+  updateRestDisplay();
+  document.getElementById('restBar').style.display = 'flex';
+  restInterval = setInterval(() => {
+    restTimeLeft--;
+    updateRestDisplay();
+    if (restTimeLeft <= 0) {
+      clearInterval(restInterval);
+      if ('vibrate' in navigator) navigator.vibrate([150, 100, 200]);
+      setTimeout(hideRestTimer, 1200);
+    }
+  }, 1000);
+}
+
+function hideRestTimer() {
+  clearInterval(restInterval);
+  document.getElementById('restBar').style.display = 'none';
+}
+
+function skipRest() { hideRestTimer(); }
+
+function addRestTime(s) {
+  restTimeLeft += s;
+  updateRestDisplay();
+}
+
+function updateRestDisplay() {
+  const secs = Math.max(0, restTimeLeft);
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  document.getElementById('restCountdown').textContent = m + ':' + String(s).padStart(2, '0');
+  const pct = Math.max(0, Math.min(100, (restTimeLeft / REST_DEFAULT) * 100));
+  document.getElementById('restProgressFill').style.width = pct + '%';
 }
 
 // ---- Helpers ----
@@ -349,7 +438,12 @@ async function loadWorkout() {
       return;
     }
 
-    allExercises.forEach(ex => { exNameMap[sanitizeId(ex.name)] = ex.name; });
+    allExercises.forEach(ex => {
+      exNameMap[sanitizeId(ex.name)] = ex.name;
+      if (ex.prWeight !== null && ex.prWeight !== undefined) {
+        exercisePRs[ex.name] = ex.prWeight;
+      }
+    });
 
     primaryDay = data.nextDay || 'CHEST';
     currentDay = primaryDay;
@@ -370,9 +464,7 @@ function showError(msg) {
 }
 
 // ---- Day Switching ----
-function switchDay(day) {
-  selectDay(day);
-}
+function switchDay(day) { selectDay(day); }
 
 function selectDay(day) {
   currentDay = day;
@@ -424,6 +516,7 @@ function renderExercises(exercises) {
   exercises.forEach(ex => {
     const sid = sanitizeId(ex.name);
     const state = exerciseState[ex.name] || { skipped: false, sets: [{ weight: '', reps: '', feel: '' }] };
+    const pr = exercisePRs[ex.name];
 
     let lastStr;
     if (ex.lastWeight !== null && ex.lastWeight !== undefined && ex.lastWeight !== '') {
@@ -434,15 +527,21 @@ function renderExercises(exercises) {
       lastStr = 'bodyweight';
     }
 
+    const prStr = pr ? (ex.isPerSide ? pr + ' lbs/side' : pr + ' lbs') : null;
+
     html += `
     <div class="exercise-card${state.skipped ? ' skipped' : ''}" id="card_${sid}">
       <div class="ex-header">
         <div class="ex-name">${ex.name}</div>
         <div class="ex-muscle">${ex.muscleGroup}</div>
       </div>
-      <div class="ex-last">Last: <span>${lastStr}</span></div>
+      <div class="ex-last">
+        Last: <span class="last-val">${lastStr}</span>
+        ${prStr ? '&nbsp;·&nbsp; PR: <span class="ex-pr">' + prStr + '</span>' : ''}
+        <span class="ex-pr-badge" id="pr_badge_${sid}">🏆 NEW PR!</span>
+      </div>
       <div class="sets-container" id="sets_${sid}">
-        ${state.sets.map((s, i) => renderSetRow(sid, i, s)).join('')}
+        ${state.sets.map((s, i) => renderSetRow(sid, i, s, ex.name)).join('')}
       </div>
       <div class="ex-actions">
         <button class="add-set-btn" onclick="addSet('${sid}')">+ Set</button>
@@ -454,7 +553,10 @@ function renderExercises(exercises) {
   container.innerHTML = html;
 }
 
-function renderSetRow(sid, idx, set) {
+function renderSetRow(sid, idx, set, exName) {
+  const pr = exName ? (exercisePRs[exName] || 0) : 0;
+  const w = parseFloat(set.weight) || 0;
+  const isPR = w > 0 && pr > 0 && w > pr;
   const feels = ['Easy', 'Good', 'Hard', 'Max'];
   const feelBtns = feels.map(f => {
     const cls = set.feel === f ? ' active-' + f.toLowerCase() : '';
@@ -462,7 +564,7 @@ function renderSetRow(sid, idx, set) {
   }).join('');
 
   return `
-  <div class="set-row" id="setrow_${sid}_${idx}">
+  <div class="set-row${isPR ? ' pr-set' : ''}" id="setrow_${sid}_${idx}">
     <div class="set-row-top">
       <span class="set-num">${idx + 1}</span>
       <input class="set-input" type="number" inputmode="decimal" placeholder="lbs"
@@ -489,6 +591,18 @@ function updateSet(sid, idx, field, value) {
   } else {
     exerciseState[exName].sets[idx][field] = value;
   }
+
+  // PR detection on weight change
+  if (field === 'weight') {
+    const newW = parseFloat(value) || 0;
+    const pr   = exercisePRs[exName] || 0;
+    const badge = document.getElementById('pr_badge_' + sid);
+    if (badge) badge.style.display = (newW > pr && newW > 0) ? 'inline' : 'none';
+    // highlight the set row
+    const row = document.getElementById('setrow_' + sid + '_' + idx);
+    if (row) row.classList.toggle('pr-set', newW > pr && newW > 0);
+  }
+
   updateProgress();
 }
 
@@ -496,11 +610,10 @@ function setFeel(sid, idx, feel) {
   const exName = exNameMap[sid];
   if (!exName || !exerciseState[exName]) return;
   exerciseState[exName].sets[idx].feel = feel;
-  // Re-render only that set's feel buttons
   const setsContainer = document.getElementById('sets_' + sid);
   if (setsContainer) {
     const sets = exerciseState[exName].sets;
-    setsContainer.innerHTML = sets.map((s, i) => renderSetRow(sid, i, s)).join('');
+    setsContainer.innerHTML = sets.map((s, i) => renderSetRow(sid, i, s, exName)).join('');
   }
   updateProgress();
 }
@@ -512,7 +625,8 @@ function addSet(sid) {
   const last = sets[sets.length - 1];
   sets.push({ weight: last ? last.weight : '', reps: '', feel: '' });
   const container = document.getElementById('sets_' + sid);
-  if (container) container.innerHTML = sets.map((s, i) => renderSetRow(sid, i, s)).join('');
+  if (container) container.innerHTML = sets.map((s, i) => renderSetRow(sid, i, s, exName)).join('');
+  startRestTimer();
 }
 
 function removeSet(sid, idx) {
@@ -522,7 +636,7 @@ function removeSet(sid, idx) {
   if (sets.length <= 1) return;
   sets.splice(idx, 1);
   const container = document.getElementById('sets_' + sid);
-  if (container) container.innerHTML = sets.map((s, i) => renderSetRow(sid, i, s)).join('');
+  if (container) container.innerHTML = sets.map((s, i) => renderSetRow(sid, i, s, exName)).join('');
   updateProgress();
 }
 
@@ -534,10 +648,7 @@ function toggleSkip(sid) {
   const card = document.getElementById('card_' + sid);
   const btn = document.getElementById('skipBtn_' + sid);
   if (card) card.classList.toggle('skipped', skipped);
-  if (btn) {
-    btn.textContent = skipped ? 'Undo' : 'Skip';
-    btn.classList.toggle('active', skipped);
-  }
+  if (btn) { btn.textContent = skipped ? 'Undo' : 'Skip'; btn.classList.toggle('active', skipped); }
   updateProgress();
 }
 
@@ -566,23 +677,19 @@ function updateProgress() {
 }
 
 // ---- Finish ----
-function confirmFinish() {
-  document.getElementById('confirmOverlay').classList.add('open');
-}
-function closeOverlay() {
-  document.getElementById('confirmOverlay').classList.remove('open');
-}
+function confirmFinish() { document.getElementById('confirmOverlay').classList.add('open'); }
+function closeOverlay()  { document.getElementById('confirmOverlay').classList.remove('open'); }
 
 async function submitWorkout() {
   closeOverlay();
   clearInterval(timerInterval);
+  hideRestTimer();
   const duration = getElapsedStr();
 
   const date = new Date().toISOString().split('T')[0];
   const sessionId = 'sess_' + Date.now();
   const sets = [];
 
-  // Collect sets from ALL tabs visited (exerciseState holds everything across tabs)
   Object.keys(exerciseState).forEach(exName => {
     const state = exerciseState[exName];
     if (!state || state.skipped) return;
@@ -598,12 +705,19 @@ async function submitWorkout() {
     });
   });
 
-  // Summary stats
   const totalSets = sets.length;
   const exercisesDone = new Set(sets.map(s => s.exerciseName)).size;
   const totalVolume = Math.round(sets.reduce((sum, s) => sum + s.weight * s.reps, 0));
 
-  // Build day label — show supplemental groups if work was logged there
+  // Detect new PRs
+  const newPRNames = [];
+  sets.forEach(s => {
+    const pr = exercisePRs[s.exerciseName] || 0;
+    if (s.weight > 0 && s.weight > pr && !newPRNames.includes(s.exerciseName)) {
+      newPRNames.push(s.exerciseName);
+    }
+  });
+
   const supplementalDone = ['FUNCTIONAL', 'CORE'].filter(d =>
     allExercises.filter(e => e.day === d).some(e => {
       const st = exerciseState[e.name];
@@ -614,18 +728,18 @@ async function submitWorkout() {
     ? primaryDay + ' + ' + supplementalDone.join(' + ')
     : primaryDay;
 
-  // Show success immediately (best-effort save)
   document.getElementById('mainContent').style.display = 'none';
   document.getElementById('finishWrap').style.display = 'none';
   document.getElementById('dayTabs').style.display = 'none';
   document.getElementById('successDay').textContent = dayLabel;
+  document.getElementById('successPRLine').textContent =
+    newPRNames.length > 0 ? '🏆 ' + newPRNames.length + ' new PR' + (newPRNames.length > 1 ? 's' : '') + '!' : '';
   document.getElementById('successTime').textContent = duration;
   document.getElementById('successSets').textContent = totalSets;
   document.getElementById('successExercises').textContent = exercisesDone;
   document.getElementById('successVolume').textContent = totalVolume.toLocaleString();
   document.getElementById('successScreen').classList.add('visible');
 
-  // Submit in background — dayName is always the primary rotation day
   if (sets.length > 0) {
     try {
       await fetch(API, {
@@ -637,11 +751,8 @@ async function submitWorkout() {
   }
 }
 
-function goHome() {
-  window.location.href = 'index.html';
-}
+function goHome() { window.location.href = 'index.html'; }
 
-// ---- Init ----
 loadWorkout();
 </script>
 </body>

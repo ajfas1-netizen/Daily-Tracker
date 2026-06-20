@@ -109,6 +109,8 @@
     .heatmap-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
     .legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--dim); }
     .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .hm-cell.nut-hit  { background: #22c55e; }
+    .hm-cell.nut-miss { background: #f59e0b; }
 
     /* ---- Exercise Picker ---- */
     .ex-select {
@@ -225,6 +227,35 @@
     </div>
   </div>
 
+  <!-- Nutrition Consistency Heatmap -->
+  <div class="section">
+    <div class="section-title">Nutrition Consistency — Last 13 Weeks</div>
+    <div class="chart-card">
+      <div class="heatmap-outer">
+        <div class="heatmap-flex">
+          <div class="heatmap-day-labels">
+            <div class="hm-day">M</div>
+            <div class="hm-day">T</div>
+            <div class="hm-day">W</div>
+            <div class="hm-day">T</div>
+            <div class="hm-day">F</div>
+            <div class="hm-day">S</div>
+            <div class="hm-day">S</div>
+          </div>
+          <div class="heatmap-body">
+            <div class="hm-month-row" id="hmNutMonths"></div>
+            <div class="hm-weeks" id="hmNutWeeks"></div>
+          </div>
+        </div>
+      </div>
+      <div class="heatmap-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Protein goal hit</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div>Logged, missed goal</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.05);"></div>No data</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Volume per session -->
   <div class="section" id="volumeSection">
     <div class="section-title">Volume Per Session</div>
@@ -276,6 +307,7 @@ async function loadDashboard() {
     buildHeatmap();
     buildVolumeChart();
     buildExercisePicker();
+    buildNutritionHeatmap();
 
     document.getElementById('loadingState').style.display = 'none';
     document.getElementById('dashContent').style.display = 'block';
@@ -570,6 +602,62 @@ function updateProgressionChart() {
       }
     }
   });
+}
+
+// ---- Nutrition Consistency Heatmap ----
+function buildNutritionHeatmap() {
+  const NUM_WEEKS = 13;
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const stored = localStorage.getItem('grind_targets');
+  const protTarget = stored ? (JSON.parse(stored).protein || 190) : 190;
+
+  const nutMap = {};
+  summaryData.forEach(d => {
+    if ((d.protein || 0) > 0 || (d.calories || 0) > 0) {
+      nutMap[d.date] = { hit: (d.protein || 0) >= protTarget };
+    }
+  });
+
+  const start = new Date(today);
+  const dow = start.getDay();
+  start.setDate(start.getDate() - (dow === 0 ? 6 : dow - 1) - (NUM_WEEKS - 1) * 7);
+  start.setHours(0, 0, 0, 0);
+
+  const weeksEl = document.getElementById('hmNutWeeks');
+  const monthsEl = document.getElementById('hmNutMonths');
+  let lastMonth = -1;
+
+  for (let w = 0; w < NUM_WEEKS; w++) {
+    const weekEl = document.createElement('div');
+    weekEl.className = 'hm-week';
+    const weekStart = new Date(start);
+    weekStart.setDate(weekStart.getDate() + w * 7);
+    const mo = weekStart.getMonth();
+    const moCell = document.createElement('div');
+    moCell.className = 'hm-month-cell';
+    if (mo !== lastMonth) { moCell.textContent = 'JFMAMJJASOND'[mo]; lastMonth = mo; }
+    monthsEl.appendChild(moCell);
+
+    for (let d = 0; d < 7; d++) {
+      const cellDate = new Date(start);
+      cellDate.setDate(cellDate.getDate() + w * 7 + d);
+      const ds = cellDate.toISOString().split('T')[0];
+      const cell = document.createElement('div');
+      cell.className = 'hm-cell';
+      if (cellDate > today) {
+        cell.classList.add('future');
+      } else {
+        const nut = nutMap[ds];
+        if (nut) cell.classList.add(nut.hit ? 'nut-hit' : 'nut-miss');
+      }
+      if (ds === todayStr) cell.classList.add('today');
+      const nut = nutMap[ds];
+      cell.title = ds + (nut ? (nut.hit ? ' · Protein goal hit!' : ' · Logged, missed goal') : ' · No data');
+      weekEl.appendChild(cell);
+    }
+    weeksEl.appendChild(weekEl);
+  }
 }
 
 loadDashboard();

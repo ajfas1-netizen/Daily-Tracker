@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>The Grind – Food</title>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     :root {
       --bg: #0b1120;
@@ -66,7 +67,9 @@
     .content { padding: 14px 16px; }
 
     /* ---- Search ---- */
-    .search-wrap { position: relative; margin-bottom: 14px; }
+    .search-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .search-row .search-wrap { flex: 1; margin-bottom: 0; }
+    .search-wrap { position: relative; }
     .search-wrap input {
       width: 100%; background: var(--card); border: 1px solid var(--border);
       border-radius: 12px; padding: 11px 14px 11px 38px;
@@ -76,6 +79,36 @@
     .search-icon {
       position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
       color: var(--dim); font-size: 15px; pointer-events: none;
+    }
+    .scan-btn {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      color: var(--dim); font-size: 20px; cursor: pointer;
+      width: 46px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    }
+    .scan-btn:active { border-color: var(--accent); color: var(--accent); }
+
+    /* ---- Scanner Overlay ---- */
+    .scanner-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+      z-index: 300; flex-direction: column;
+    }
+    .scanner-overlay.open { display: flex; }
+    .scanner-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 18px; flex-shrink: 0;
+    }
+    .scanner-title { font-size: 16px; font-weight: 700; color: var(--text); }
+    .scanner-close {
+      background: var(--card); border: 1px solid var(--border); border-radius: 50%;
+      color: var(--dim); font-size: 16px; width: 36px; height: 36px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #qrReader { flex: 1; overflow: hidden; }
+    #qrReader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+    #qrReader img { display: none; }
+    .scan-status {
+      padding: 14px 18px; text-align: center; font-size: 13px; color: var(--dim);
+      background: var(--card); border-top: 1px solid var(--border); flex-shrink: 0;
     }
 
     /* ---- Food Cards ---- */
@@ -190,9 +223,12 @@
 </div>
 
 <div class="content">
-  <div class="search-wrap">
-    <span class="search-icon">&#128269;</span>
-    <input type="text" id="searchInput" placeholder="Search foods…" oninput="filterFoods(this.value)">
+  <div class="search-row">
+    <div class="search-wrap">
+      <span class="search-icon">&#128269;</span>
+      <input type="text" id="searchInput" placeholder="Search foods…" oninput="filterFoods(this.value)">
+    </div>
+    <button class="scan-btn" onclick="openScanner()" title="Scan barcode">&#128247;</button>
   </div>
 
   <div id="foodList">
@@ -223,6 +259,16 @@
     </div>
     <button class="save-food-btn" onclick="saveNewFood()">Save to Library</button>
   </div>
+</div>
+
+<!-- Barcode Scanner Overlay -->
+<div class="scanner-overlay" id="scannerOverlay">
+  <div class="scanner-header">
+    <span class="scanner-title">Scan Barcode</span>
+    <button class="scanner-close" onclick="closeScanner()">&#10005;</button>
+  </div>
+  <div id="qrReader"></div>
+  <div class="scan-status" id="scanStatus">Point camera at a barcode</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -382,6 +428,63 @@ async function saveNewFood() {
 }
 
 function goHome() { window.location.href = 'index.html'; }
+
+// ---- Barcode Scanner ----
+let html5QrCode = null;
+
+function openScanner() {
+  document.getElementById('scannerOverlay').classList.add('open');
+  document.getElementById('scanStatus').textContent = 'Starting camera…';
+  html5QrCode = new Html5Qrcode('qrReader');
+  html5QrCode.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 260, height: 130 } },
+    onBarcodeScanned,
+    () => {}
+  ).then(() => {
+    document.getElementById('scanStatus').textContent = 'Point camera at a barcode';
+  }).catch(err => {
+    document.getElementById('scanStatus').textContent = 'Camera error: ' + (err.message || err);
+  });
+}
+
+async function onBarcodeScanned(barcode) {
+  try { await html5QrCode.stop(); } catch {}
+  document.getElementById('scanStatus').textContent = 'Found ' + barcode + ' — looking up…';
+  try {
+    const res = await fetch('https://world.openfoodfacts.org/api/v0/product/' + barcode + '.json');
+    const data = await res.json();
+    if (data.status !== 1 || !data.product) {
+      document.getElementById('scanStatus').textContent = 'Product not found. Add it manually.';
+      setTimeout(closeScanner, 2000);
+      return;
+    }
+    const p = data.product;
+    const n = p.nutriments || {};
+    document.getElementById('newFoodName').value    = p.product_name || p.brands || '';
+    document.getElementById('newServingLabel').value = p.serving_size || '1 serving';
+    document.getElementById('newProtein').value     = Math.round(n.proteins_serving || 0);
+    document.getElementById('newCalories').value    = Math.round(n['energy-kcal_serving'] || 0);
+    document.getElementById('newCarbs').value       = Math.round(n.carbohydrates_serving || 0);
+    document.getElementById('newFat').value         = Math.round(n.fat_serving || 0);
+    document.getElementById('newSugar').value       = Math.round(n.sugars_serving || 0);
+    document.getElementById('newSodium').value      = Math.round((n.sodium_serving || 0) * 1000);
+    closeScanner();
+    document.getElementById('addFoodForm').classList.add('open');
+    showToast('Product found! Review and save.');
+  } catch {
+    document.getElementById('scanStatus').textContent = 'Lookup failed. Check connection.';
+    setTimeout(closeScanner, 2000);
+  }
+}
+
+function closeScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().catch(() => {});
+    html5QrCode = null;
+  }
+  document.getElementById('scannerOverlay').classList.remove('open');
+}
 
 loadAll();
 </script>
