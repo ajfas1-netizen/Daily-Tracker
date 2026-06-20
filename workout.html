@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>The Grind – Workout</title>
+  <!-- v4 -->
   <style>
     :root {
       --bg: #0e0f11;
@@ -298,6 +299,7 @@
       content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07);
     }
     .plan-ex-hint { font-size: 11px; color: var(--dim); margin-top: 3px; }
+    .plan-ex-desc { font-size: 11px; color: #5a6070; margin-top: 2px; font-style: italic; }
   </style>
 </head>
 <body>
@@ -391,6 +393,45 @@
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
+
+const EX_DESC = {
+  // Functional
+  'KB Turkish Get-Up':    'Slow floor-to-standing KB move — full body stability',
+  'KB Thruster':          'Squat into overhead press in one fluid rep',
+  'KB Snatch':            'Explosive single-arm swing up to overhead lockout',
+  'KB Figure 8':          'Pass KB around and through legs in a figure-8 pattern',
+  'Battle Ropes':         'Alternating or simultaneous rope slams — conditioning',
+  'Medicine Ball Slams':  'Overhead raise then slam the ball into the ground hard',
+  'Renegade Row':         'Plank position — alternate rows each arm, core braced',
+  'Single Leg KB RDL':    'Hinge on one leg, KB traces down shin — balance & hamstrings',
+  'Bear Crawl':           'Hands and feet, knees hovering — crawl controlled forward',
+  'Sandbag Carry':        'Pick up sandbag and carry a set distance — grip & core',
+  'KB Clean':             'Explosive hip-drive to rack the KB at shoulder level',
+  'Broad Jump':           'Max horizontal jump — power and landing mechanics',
+  // Core
+  'Dead Bug':             'Opposite arm/leg lower while lower back stays flat',
+  'Russian Twist':        'Seated twist with weight — targets obliques',
+  'Dragon Flag':          'Full body lower slowly from vertical on a bench',
+  'L-Sit':                'Hold hips up off ground, legs straight out — brutal compression',
+  'Landmine 180s':        'Sweep barbell end side to side overhead in an arc',
+  'Windshield Wipers':    'Hanging — rotate legs side to side like wipers',
+  'GHD Sit-Up':           'Full range sit-up on a glute-ham developer machine',
+  'Pallof Press':         'Cable anti-rotation hold — press out and resist the pull',
+  'Cable Woodchop':       'Diagonal cable pull from high to low — rotational power',
+  'Hanging Leg Raise':    'Dead hang — raise legs straight to 90° or higher',
+  // Less obvious lifting exercises
+  'Bradford Press':       'Barbell circles overhead — front and back in each rep',
+  'KB Halo':              'Slow circle of KB around your head — shoulder stability',
+  'KB Windmill':          'Hinge sideways under a locked-out KB overhead — hip stretch',
+  'Face Pulls':           'Cable pull to face level — rear delts and external rotation',
+  'Landmine RDL':         'Romanian deadlift using one end of a barbell in a sleeve',
+  'Landmine Squat':       'Squat holding the end of a landmine barbell at chest',
+  'Landmine Reverse Lunge':'Step back into a lunge using the landmine for load',
+  'Goblet Squat':         'Squat holding a KB or DB at chest — great for depth',
+  'Good Mornings':        'Barbell on back, hinge forward — hamstrings and posterior chain',
+  'Hip Abduction Machine':'Seated machine, push knees out against pads — glutes',
+  'Pallof Press':         'Anti-rotation cable press — core stability exercise',
+};
 
 let allExercises = [];
 let exNameMap = {};       // sanitizedId → actualName
@@ -555,12 +596,14 @@ function makePlanCard(ex, isSelected) {
   } else if (ex.defaultWeight > 0) {
     hintStr = 'Starts ~' + ex.defaultWeight + ' lbs' + (ex.isPerSide ? '/side' : '');
   }
+  const desc = EX_DESC[ex.name] || '';
   const selClass = isSelected ? ' selected' : '';
   return `
   <div class="plan-ex-card${selClass}" id="plancard_${sid}" onclick="togglePlanEx('${sid}', '${ex.name.replace(/'/g, "\\'")}')">
     <div class="plan-check">&#10003;</div>
     <div class="plan-ex-info">
       <div class="plan-ex-name">${ex.name}</div>
+      ${desc ? `<div class="plan-ex-desc">${desc}</div>` : ''}
       ${hintStr ? `<div class="plan-ex-hint">${hintStr}</div>` : ''}
     </div>
     <div class="plan-ex-muscle">${ex.muscleGroup}</div>
@@ -582,14 +625,18 @@ function renderPlanScreen(dayExercises) {
 
   html += '<div class="plan-count" id="planCount">' + dayExercises.length + ' of ' + dayExercises.length + ' selected</div>';
 
+  html += '<div class="plan-section-divider">Add Functional</div>';
   if (funcExercises.length) {
-    html += '<div class="plan-section-divider">Add Functional</div>';
     funcExercises.forEach(ex => { html += makePlanCard(ex, false); });
+  } else {
+    html += '<div class="plan-count" style="padding:14px 0">Run <b>seedExercises()</b> in Apps Script to unlock these.</div>';
   }
 
+  html += '<div class="plan-section-divider">Add Core / Abs</div>';
   if (coreExercises.length) {
-    html += '<div class="plan-section-divider">Add Core / Abs</div>';
     coreExercises.forEach(ex => { html += makePlanCard(ex, false); });
+  } else {
+    html += '<div class="plan-count" style="padding:14px 0">Run <b>seedExercises()</b> in Apps Script to unlock these.</div>';
   }
 
   html += '<div style="height:20px"></div>';
