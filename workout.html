@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>The Grind – Workout</title>
-  <!-- v6 -->
+  <!-- v7 -->
   <style>
     :root {
       --bg: #0e0f11;
@@ -492,6 +492,7 @@ let timerInterval = null;
 let startTime = null;
 let planMode = true;
 let selectedExNames = new Set();
+let lastDayExMap = {};   // dayName → Set of exercise names used last time
 
 // ---- Workout Timer ----
 function startTimer() {
@@ -559,6 +560,23 @@ function sanitizeId(name) {
   return name.replace(/[^a-zA-Z0-9]/g, '_');
 }
 
+// ---- Build per-day exercise sets from most recent session for each day ----
+function buildLastDayMap(history) {
+  const latestByDay = {};
+  (Array.isArray(history) ? history : []).forEach(session => {
+    const day = session.dayName;
+    if (!day) return;
+    if (!latestByDay[day] || session.date > latestByDay[day].date) {
+      latestByDay[day] = session;
+    }
+  });
+  const map = {};
+  Object.entries(latestByDay).forEach(([day, session]) => {
+    map[day] = new Set((session.sets || []).map(s => s.exerciseName).filter(Boolean));
+  });
+  return map;
+}
+
 // ---- Build last-session map ----
 function buildLastSessionMap(history) {
   const map = {};
@@ -601,6 +619,7 @@ async function loadWorkout() {
     }
 
     lastSessionMap = buildLastSessionMap(histRes);
+    lastDayExMap   = buildLastDayMap(histRes);
 
     allExercises.forEach(ex => {
       exNameMap[sanitizeId(ex.name)] = ex.name;
@@ -623,7 +642,15 @@ function showPlanScreen(day) {
   document.getElementById('headerDay').textContent = day + ' DAY';
 
   const dayExercises = allExercises.filter(e => e.day === day);
-  selectedExNames = new Set(dayExercises.map(e => e.name));
+  const lastUsed = lastDayExMap[day];
+  if (lastUsed && lastUsed.size > 0) {
+    // Pre-select only exercises done last time for this day
+    selectedExNames = new Set(dayExercises.filter(e => lastUsed.has(e.name)).map(e => e.name));
+    if (selectedExNames.size === 0) selectedExNames = new Set(dayExercises.map(e => e.name));
+  } else {
+    // No history for this day yet — select all as a starting point
+    selectedExNames = new Set(dayExercises.map(e => e.name));
+  }
 
   renderPlanScreen(dayExercises);
 
