@@ -164,7 +164,7 @@
   .drink-chip.surfside .dc-val { color: #22d3ee; }
   .drink-chip.titos    .dc-val { color: #94a3b8; }
   .drink-chip.martini  .dc-val { color: #6ee7b7; }
-  .drink-row-2x2 { grid-template-columns: 1fr 1fr; }
+  .drink-row.drink-row-2x2 { grid-template-columns: 1fr 1fr; }
 
   /* ---- Next Workout Strip ---- */
   .next-workout-strip {
@@ -636,9 +636,11 @@
     <button class="tap-btn" onclick="tapLiquid('water', this, 24)"><span class="tap-icon">💧💧</span><span class="sub">24 oz</span></button>
     <button class="tap-btn" onclick="openCustomWater()"><span class="tap-icon" style="font-size:20px">＋</span><span class="sub">Custom</span></button>
   </div>
-  <button class="tap-btn tap-coors" onclick="tapLiquid('coors', this)"><span class="tap-icon">🍺</span><span class="sub">102 cal</span></button>
-  <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)"><span class="tap-icon">🥃</span><span class="sub">97 cal</span></button>
-  <button class="tap-btn tap-mimosa" onclick="tapLiquid('mimosa', this)"><span class="tap-icon">🥂</span><span class="sub">135 cal</span></button>
+  <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+    <button class="tap-btn tap-coors" onclick="tapLiquid('coors', this)"><span class="tap-icon">🍺</span><span class="sub">102 cal</span></button>
+    <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)"><span class="tap-icon">🥃</span><span class="sub">97 cal</span></button>
+    <button class="tap-btn tap-mimosa" onclick="tapLiquid('mimosa', this)"><span class="tap-icon">🥂</span><span class="sub">135 cal</span></button>
+  </div>
 </div>
 <!-- Michele quick-taps -->
 <div class="quick-taps" id="micheleQuickTaps" style="display:none">
