@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>The Grind – Workout</title>
-  <!-- v7 -->
+  <!-- v8 -->
   <style>
     :root {
       --bg: #0e0f11;
@@ -348,6 +348,37 @@
       background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
       border-radius: 12px; color: #f0f0f0; font-size: 15px; font-weight: 600; cursor: pointer;
     }
+
+    /* ---- Michele Activity Screen ---- */
+    #micheleActivity { padding: 20px 16px; }
+    .act-title {
+      font-size: 11px; font-weight: 900; letter-spacing: 3px; color: #c084fc;
+      text-align: center; margin-bottom: 20px;
+    }
+    .act-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;
+    }
+    .act-btn {
+      background: #1a1c22; border: 1px solid rgba(192,132,252,0.2);
+      border-radius: 16px; padding: 20px 12px; cursor: pointer; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .act-btn:active { background: rgba(192,132,252,0.08); border-color: rgba(192,132,252,0.5); }
+    .act-btn.logged { border-color: rgba(192,132,252,0.6); background: rgba(192,132,252,0.1); }
+    .act-icon { font-size: 32px; line-height: 1; }
+    .act-name { font-size: 13px; font-weight: 800; color: #f0f0f0; }
+    .act-sub  { font-size: 11px; color: #888; }
+    .act-today-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #888;
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+    .act-logged-list { display: flex; flex-direction: column; gap: 8px; }
+    .act-logged-item {
+      background: rgba(192,132,252,0.08); border: 1px solid rgba(192,132,252,0.2);
+      border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #c084fc;
+    }
+    .act-empty { color: #555; font-size: 13px; text-align: center; padding: 16px 0; }
   </style>
 </head>
 <body>
@@ -363,6 +394,40 @@
   </div>
   <div class="timer" id="timerDisplay">0:00</div>
 </div>
+
+<!-- Michele Activity Log (shown instead of gym UI) -->
+<div id="micheleActivity" style="display:none">
+  <div class="act-title">LOG ACTIVITY</div>
+  <div class="act-grid">
+    <button class="act-btn" id="actBtn_pilates1" onclick="logActivity('Club Pilates L1')">
+      <span class="act-icon">🧘</span>
+      <span class="act-name">Club Pilates</span>
+      <span class="act-sub">Level 1</span>
+    </button>
+    <button class="act-btn" id="actBtn_pilates15" onclick="logActivity('Club Pilates L1.5')">
+      <span class="act-icon">🧘</span>
+      <span class="act-name">Club Pilates</span>
+      <span class="act-sub">Level 1.5</span>
+    </button>
+    <button class="act-btn" id="actBtn_walk2" onclick="logActivity('Walk 2mi')">
+      <span class="act-icon">🚶</span>
+      <span class="act-name">Walk</span>
+      <span class="act-sub">~2 miles</span>
+    </button>
+    <button class="act-btn" id="actBtn_walk" onclick="logActivity('Walk')">
+      <span class="act-icon">🚶</span>
+      <span class="act-name">Walk</span>
+      <span class="act-sub">Custom</span>
+    </button>
+  </div>
+  <div class="act-today-title">Today's Activity</div>
+  <div class="act-logged-list" id="actLoggedList">
+    <div class="act-empty">Nothing logged yet today.</div>
+  </div>
+</div>
+
+<!-- AJ Gym UI -->
+<div id="ajGym">
 
 <!-- Day Tabs -->
 <div class="day-tabs" id="dayTabs">
@@ -441,6 +506,62 @@
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
+const currentUser = (localStorage.getItem('grind_user') || 'aj').toLowerCase();
+
+// ---- Michele Activity Logging ----
+async function logActivity(activityType) {
+  const idMap = {
+    'Club Pilates L1': 'actBtn_pilates1',
+    'Club Pilates L1.5': 'actBtn_pilates15',
+    'Walk 2mi': 'actBtn_walk2',
+    'Walk': 'actBtn_walk'
+  };
+  const btn = document.getElementById(idMap[activityType]);
+  if (btn) { btn.disabled = true; btn.classList.add('logged'); }
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'logActivity', activityType, user: 'michele' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      loadMicheleActivities();
+    } else {
+      alert('Could not log activity.');
+      if (btn) btn.classList.remove('logged');
+    }
+  } catch (err) {
+    alert('Failed to log activity — check connection.');
+    if (btn) { btn.disabled = false; btn.classList.remove('logged'); }
+  }
+}
+
+async function loadMicheleActivities() {
+  try {
+    const today = new Date().toLocaleDateString('en-CA');
+    const res   = await fetch(API + '?action=getHomeData&user=michele');
+    const data  = await res.json();
+    const acts  = data.todayActivities || [];
+    const list  = document.getElementById('actLoggedList');
+    if (!acts.length) {
+      list.innerHTML = '<div class="act-empty">Nothing logged yet today.</div>';
+      return;
+    }
+    list.innerHTML = acts.map(a => `<div class="act-logged-item">✓ ${a.activityType}</div>`).join('');
+    // Mark buttons for already-logged activities
+    acts.forEach(a => {
+      const idMap = {
+        'Club Pilates L1': 'actBtn_pilates1',
+        'Club Pilates L1.5': 'actBtn_pilates15',
+        'Walk 2mi': 'actBtn_walk2',
+        'Walk': 'actBtn_walk'
+      };
+      const btnId = idMap[a.activityType];
+      if (btnId) document.getElementById(btnId)?.classList.add('logged');
+    });
+  } catch (err) { console.error('Failed to load activities', err); }
+}
 
 const EX_DESC = {
   // Functional
@@ -1215,7 +1336,14 @@ function closeExInfo() {
 
 function goHome() { window.location.href = 'index.html'; }
 
-loadWorkout();
+// ---- Profile-aware initialization ----
+if (currentUser === 'michele') {
+  document.getElementById('micheleActivity').style.display = 'block';
+  document.getElementById('ajGym').style.display = 'none';
+  loadMicheleActivities();
+} else {
+  loadWorkout();
+}
 </script>
 
 <!-- Exercise Info Sheet -->
@@ -1229,6 +1357,8 @@ loadWorkout();
     <button class="ex-sheet-close" onclick="closeExInfo()">Got it</button>
   </div>
 </div>
+
+</div><!-- end #ajGym -->
 
 </body>
 </html>

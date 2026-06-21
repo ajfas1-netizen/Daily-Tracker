@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Grind</title>
-<!-- v15 -->
+<!-- v16 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="The Grind">
@@ -72,7 +72,13 @@
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
   .icon-btn:active { color: var(--accent); border-color: var(--accent); }
-  .header-right { display: flex; justify-content: flex-end; }
+  .header-right { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+  .profile-pill {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 20px;
+    padding: 4px 11px; font-size: 10px; font-weight: 800; letter-spacing: 1px;
+    color: var(--dim); cursor: pointer; line-height: 24px; white-space: nowrap;
+  }
+  .profile-pill.michele { color: #c084fc; border-color: rgba(192,132,252,0.35); }
 
   /* ---- Status Banner ---- */
   .status-banner {
@@ -151,9 +157,14 @@
   }
   .dc-label { font-size: 11px; color: var(--dim); font-weight: 600; }
   .dc-val { font-size: 17px; font-weight: 800; }
-  .drink-chip.coors   .dc-val { color: #fbbf24; }
-  .drink-chip.bourbon .dc-val { color: #f87171; }
-  .drink-chip.mimosa  .dc-val { color: #f0c050; }
+  .drink-chip.coors    .dc-val { color: #fbbf24; }
+  .drink-chip.bourbon  .dc-val { color: #f87171; }
+  .drink-chip.mimosa   .dc-val { color: #f0c050; }
+  .drink-chip.redwine  .dc-val { color: #c084fc; }
+  .drink-chip.surfside .dc-val { color: #22d3ee; }
+  .drink-chip.titos    .dc-val { color: #94a3b8; }
+  .drink-chip.martini  .dc-val { color: #6ee7b7; }
+  .drink-row-2x2 { grid-template-columns: 1fr 1fr; }
 
   /* ---- Next Workout Strip ---- */
   .next-workout-strip {
@@ -275,9 +286,13 @@
   .tap-icon { display: block; font-size: 26px; margin-bottom: 4px; line-height: 1; }
   .tap-btn .sub { display: block; font-size: 10px; font-weight: 400; margin-top: 2px; opacity: 0.7; }
   .tap-coffee  { border-color: rgba(168,162,158,0.45); }
-  .tap-coors   { border-color: rgba(245,158,11,0.45); }
-  .tap-bourbon { border-color: rgba(248,113,133,0.45); }
-  .tap-mimosa  { border-color: rgba(240,192,80,0.45); }
+  .tap-coors    { border-color: rgba(245,158,11,0.45); }
+  .tap-bourbon  { border-color: rgba(248,113,133,0.45); }
+  .tap-mimosa   { border-color: rgba(240,192,80,0.45); }
+  .tap-redwine  { border-color: rgba(192,132,252,0.45); }
+  .tap-surfside { border-color: rgba(34,211,238,0.45); }
+  .tap-titos    { border-color: rgba(148,163,184,0.45); }
+  .tap-martini  { border-color: rgba(110,231,183,0.45); }
   .water-group { display: flex; gap: 7px; }
   .water-group .tap-btn { flex: 1; padding: 17px 6px; font-size: 13px; border-color: rgba(59,130,246,0.45); }
   .tap-btn.flash::after {
@@ -410,6 +425,7 @@
     <div class="date" id="headerDate"></div>
   </div>
   <div class="header-right">
+    <button class="profile-pill" id="profilePill" onclick="toggleProfile()">AJ</button>
     <button class="icon-btn" onclick="hardRefresh()" title="Refresh">&#8635;</button>
   </div>
 </div>
@@ -508,7 +524,8 @@
     </div>
   </div>
 
-  <div class="drink-row">
+  <!-- AJ drinks -->
+  <div class="drink-row" id="ajDrinks">
     <div class="drink-chip coors">
       <span class="dc-label">Coors</span>
       <span class="dc-val" id="totalCoors">0</span>
@@ -520,6 +537,25 @@
     <div class="drink-chip mimosa">
       <span class="dc-label">Mimosa</span>
       <span class="dc-val" id="totalMimosa">0</span>
+    </div>
+  </div>
+  <!-- Michele drinks -->
+  <div class="drink-row drink-row-2x2" id="micheleDrinks" style="display:none">
+    <div class="drink-chip redwine">
+      <span class="dc-label">Red Wine</span>
+      <span class="dc-val" id="totalRedwine">0</span>
+    </div>
+    <div class="drink-chip surfside">
+      <span class="dc-label">Surfside</span>
+      <span class="dc-val" id="totalSurfside">0</span>
+    </div>
+    <div class="drink-chip titos">
+      <span class="dc-label">Tito's</span>
+      <span class="dc-val" id="totalTitos">0</span>
+    </div>
+    <div class="drink-chip martini">
+      <span class="dc-label">Martini</span>
+      <span class="dc-val" id="totalMartini">0</span>
     </div>
   </div>
 </div>
@@ -592,7 +628,8 @@
 
 <!-- Quick Log -->
 <h2>Quick Log</h2>
-<div class="quick-taps">
+<!-- AJ quick-taps -->
+<div class="quick-taps" id="ajQuickTaps">
   <button class="tap-btn tap-coffee" onclick="tapLiquid('coffee', this)"><span class="tap-icon">☕</span><span class="sub">75 cal</span></button>
   <div class="water-group">
     <button class="tap-btn" onclick="tapLiquid('water', this, 12)"><span class="tap-icon">💧</span><span class="sub">12 oz</span></button>
@@ -602,6 +639,19 @@
   <button class="tap-btn tap-coors" onclick="tapLiquid('coors', this)"><span class="tap-icon">🍺</span><span class="sub">102 cal</span></button>
   <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)"><span class="tap-icon">🥃</span><span class="sub">97 cal</span></button>
   <button class="tap-btn tap-mimosa" onclick="tapLiquid('mimosa', this)"><span class="tap-icon">🥂</span><span class="sub">135 cal</span></button>
+</div>
+<!-- Michele quick-taps -->
+<div class="quick-taps" id="micheleQuickTaps" style="display:none">
+  <button class="tap-btn tap-coffee" onclick="tapLiquid('coffee', this)"><span class="tap-icon">☕</span><span class="sub">75 cal</span></button>
+  <div class="water-group">
+    <button class="tap-btn" onclick="tapLiquid('water', this, 12)"><span class="tap-icon">💧</span><span class="sub">12 oz</span></button>
+    <button class="tap-btn" onclick="tapLiquid('water', this, 24)"><span class="tap-icon">💧💧</span><span class="sub">24 oz</span></button>
+    <button class="tap-btn" onclick="openCustomWater()"><span class="tap-icon" style="font-size:20px">＋</span><span class="sub">Custom</span></button>
+  </div>
+  <button class="tap-btn tap-redwine"  onclick="tapLiquid('redwine', this)"><span class="tap-icon">🍷</span><span class="sub">200 cal</span></button>
+  <button class="tap-btn tap-surfside" onclick="tapLiquid('surfside', this)"><span class="tap-icon">🧋</span><span class="sub">100 cal</span></button>
+  <button class="tap-btn tap-titos"    onclick="tapLiquid('titos', this)"><span class="tap-icon">🥃</span><span class="sub">98 cal</span></button>
+  <button class="tap-btn tap-martini"  onclick="tapLiquid('martini', this)"><span class="tap-icon">🍸</span><span class="sub">180 cal</span></button>
 </div>
 
 
@@ -651,12 +701,40 @@
 const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
 const RING_CIRC = 263.9;
 
-const DEFAULT_TARGETS = { protein: 190, calories: 2300, water: 128 };
+// ---- Profile ----
+const PROFILE_DEFAULTS = {
+  aj:      { protein: 190, calories: 2300, water: 128 },
+  michele: { protein: 110, calories: 1500, water: 64  }
+};
+const currentUser = (localStorage.getItem('grind_user') || 'aj').toLowerCase();
+
+function toggleProfile() {
+  localStorage.setItem('grind_user', currentUser === 'aj' ? 'michele' : 'aj');
+  location.reload(true);
+}
+
+// Apply profile UI immediately
+(function initProfile() {
+  const pill = document.getElementById('profilePill');
+  if (currentUser === 'michele') {
+    pill.textContent = 'Michele';
+    pill.classList.add('michele');
+    document.getElementById('ajDrinks').style.display      = 'none';
+    document.getElementById('micheleDrinks').style.display = 'grid';
+    document.getElementById('ajQuickTaps').style.display      = 'none';
+    document.getElementById('micheleQuickTaps').style.display = 'flex';
+  } else {
+    pill.textContent = 'AJ';
+  }
+})();
+
+// ---- Targets (per-user, stored separately) ----
+const DEFAULT_TARGETS = PROFILE_DEFAULTS[currentUser];
 function getTargets() {
-  const raw = localStorage.getItem('grind_targets');
+  const raw = localStorage.getItem('grind_targets_' + currentUser);
   return raw ? JSON.parse(raw) : { ...DEFAULT_TARGETS };
 }
-function saveTargetsToStorage(t) { localStorage.setItem('grind_targets', JSON.stringify(t)); }
+function saveTargetsToStorage(t) { localStorage.setItem('grind_targets_' + currentUser, JSON.stringify(t)); }
 let targets = getTargets();
 
 // ---- Settings ----
@@ -682,14 +760,14 @@ document.getElementById('headerDate').textContent = new Date().toLocaleDateStrin
 
 // ---- API ----
 async function apiGet(action) {
-  const res = await fetch(API + '?action=' + action);
+  const res = await fetch(API + '?action=' + action + '&user=' + currentUser);
   return res.json();
 }
 async function apiPost(body) {
   const res = await fetch(API, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ ...body, user: currentUser })
   });
   return res.json();
 }
@@ -794,7 +872,8 @@ async function loadInsight() {
       body: JSON.stringify({
         action: 'getCoachAdvice',
         targets,
-        message: 'Look at my actual data above and give me ONE specific observation for today. Reference real numbers from my data — protein average, workout frequency, weight trend, or streak. No generic advice. 2 sentences max.'
+        user: currentUser,
+        message: 'Look at my actual data above and give me ONE specific observation for today. Reference real numbers from my data — protein average, workout or activity frequency, weight trend, or streak. No generic advice. 2 sentences max.'
       })
     });
     const data = await res.json();
@@ -872,13 +951,24 @@ function renderTotals(t) {
     ws.textContent = 'Rest'; ws.className = 'ms-value rest';
   }
 
-  document.getElementById('totalCoors').textContent   = t.coorsCount   || 0;
-  document.getElementById('totalBourbon').textContent = t.bourbonCount || 0;
-  document.getElementById('totalMimosa').textContent  = t.mimosaCount  || 0;
+  if (currentUser === 'michele') {
+    document.getElementById('totalRedwine').textContent  = t.redwineCount  || 0;
+    document.getElementById('totalSurfside').textContent = t.surfsideCount || 0;
+    document.getElementById('totalTitos').textContent    = t.titosCount    || 0;
+    document.getElementById('totalMartini').textContent  = t.martiniCount  || 0;
+  } else {
+    document.getElementById('totalCoors').textContent   = t.coorsCount   || 0;
+    document.getElementById('totalBourbon').textContent = t.bourbonCount || 0;
+    document.getElementById('totalMimosa').textContent  = t.mimosaCount  || 0;
+  }
 }
 
 // ---- Next Workout Preview ----
 function renderNextWorkout(nextDay, workoutDone) {
+  if (currentUser === 'michele') {
+    document.getElementById('nextWorkoutStrip').style.display = 'none';
+    return;
+  }
   if (!nextDay || workoutDone === 'Yes') return;
   const dayLabels = {
     CHEST: 'Chest & Triceps Day',
@@ -928,9 +1018,13 @@ function renderLog(entries) {
     let icon = '🍽️', borderColor = 'var(--border)';
     if (n.includes('coffee'))  { icon = '☕'; borderColor = '#a8a29e'; }
     else if (n.includes('water'))   { icon = '💧'; borderColor = 'var(--accent)'; }
-    else if (n.includes('coors') || n.includes('beer'))     { icon = '🍺'; borderColor = '#fbbf24'; }
+    else if (n.includes('coors') || n.includes('beer'))      { icon = '🍺'; borderColor = '#fbbf24'; }
     else if (n.includes('bourbon') || n.includes('whiskey')) { icon = '🥃'; borderColor = '#f87171'; }
     else if (n.includes('mimosa') || n.includes('prosecco')) { icon = '🥂'; borderColor = '#f0c050'; }
+    else if (n.includes('red wine'))                         { icon = '🍷'; borderColor = '#c084fc'; }
+    else if (n.includes('surfside'))                         { icon = '🧋'; borderColor = '#22d3ee'; }
+    else if (n.includes("tito"))                             { icon = '🥃'; borderColor = '#94a3b8'; }
+    else if (n.includes('martini'))                          { icon = '🍸'; borderColor = '#6ee7b7'; }
     else if (e.protein >= 35)  { icon = '🥩'; borderColor = 'var(--green)'; }
     else if (e.protein > 0)    { icon = '🍗'; borderColor = 'var(--green)'; }
     const proteinPill = e.protein  > 0 ? `<span class="log-pill protein">${e.protein}p</span>` : '';

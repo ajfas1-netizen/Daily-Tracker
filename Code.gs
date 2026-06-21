@@ -6,9 +6,13 @@ function getSheet(tabName) {
   return SpreadsheetApp.openById(SHEET_ID).getSheetByName(tabName);
 }
 
+function getSheetSuffix(user) { return user === 'michele' ? 'Michele' : ''; }
+function getSheetName(base, user) { return base + getSheetSuffix(user); }
+
 // ---- API Entry Points ----
 function doGet(e) {
   const action = e.parameter.action;
+  const user   = (e.parameter.user || 'aj').toLowerCase();
   let result;
 
   switch (action) {
@@ -16,25 +20,25 @@ function doGet(e) {
       result = getFoods();
       break;
     case 'getToday':
-      result = getToday(e.parameter.date);
+      result = getToday(e.parameter.date, user);
       break;
     case 'getTodayLog':
-      result = getTodayLog(e.parameter.date);
+      result = getTodayLog(e.parameter.date, user);
       break;
     case 'getDaySummary':
-      result = getDaySummary(e.parameter.date);
+      result = getDaySummary(e.parameter.date, user);
       break;
     case 'getWeightHistory':
-      result = getWeightHistory();
+      result = getWeightHistory(user);
       break;
     case 'getYesterday':
-      result = getYesterday();
+      result = getYesterday(user);
       break;
     case 'getSummaryHistory':
-      result = getSummaryHistory();
+      result = getSummaryHistory(user);
       break;
     case 'getHomeData':
-      result = getHomeData(e.parameter.date);
+      result = getHomeData(e.parameter.date, user);
       break;
     case 'getNextWorkout':
       result = getNextWorkout();
@@ -65,6 +69,7 @@ function doPost(e) {
   }
 
   const action = body.action;
+  const user   = (body.user || 'aj').toLowerCase();
   let result;
 
   switch (action) {
@@ -72,28 +77,28 @@ function doPost(e) {
       result = addFood(body);
       break;
     case 'logFood':
-      result = logFood(body);
+      result = logFood(body, user);
       break;
     case 'logLiquid':
-      result = logLiquid(body);
+      result = logLiquid(body, user);
       break;
     case 'seedFoods':
       result = seedFoods();
       break;
     case 'logBodyweight':
-      result = logBodyweight(body);
+      result = logBodyweight(body, user);
       break;
     case 'buildRecipe':
       result = buildRecipe(body);
       break;
     case 'logFoodDirect':
-      result = logFoodDirect(body);
+      result = logFoodDirect(body, user);
       break;
     case 'getCoachAdvice':
-      result = getCoachAdvice(body);
+      result = getCoachAdvice(body, user);
       break;
     case 'deleteLogEntry':
-      result = deleteLogEntry(body);
+      result = deleteLogEntry(body, user);
       break;
     case 'logWorkoutSession':
       result = logWorkoutSession(body);
@@ -103,6 +108,12 @@ function doPost(e) {
       break;
     case 'syncExercises':
       result = syncExercises();
+      break;
+    case 'logActivity':
+      result = logActivity(body);
+      break;
+    case 'setupMicheleSheets':
+      result = setupMicheleSheets();
       break;
     default:
       result = { error: 'Unknown action: ' + action };
@@ -179,7 +190,8 @@ function addFood(body) {
 }
 
 // ---- logFood ----
-function logFood(body) {
+function logFood(body, user) {
+  user = (user || 'aj').toLowerCase();
   const foods = getFoods();
   const food = foods.find(f => f.id === body.foodId);
   if (!food) return { error: 'Food not found: ' + body.foodId };
@@ -196,14 +208,14 @@ function logFood(body) {
   const sugar = food.sugar * servings;
   const sodium = food.sodium * servings;
 
-  const sheet = getSheet('Log');
+  const sheet = getSheet(getSheetName('Log', user));
   sheet.appendRow([
     timestamp, date, 'food',
     food.name + (servings > 1 ? ' x' + servings : ''),
     servings, protein, calories, carbs, fat, sugar, sodium
   ]);
 
-  rebuildDailySummary(date);
+  rebuildDailySummary(date, user);
 
   return {
     success: true,
@@ -212,12 +224,13 @@ function logFood(body) {
 }
 
 // ---- logLiquid ----
-function logLiquid(body) {
-  const type = body.type; // water, coffee, coors, bourbon, mimosa
+function logLiquid(body, user) {
+  user = (user || 'aj').toLowerCase();
+  const type   = body.type; // water, coffee, coors, bourbon, mimosa, redwine, surfside, titos, martini
   const amount = body.amount || 1;
-  const now = new Date();
+  const now    = new Date();
   const timestamp = now.toISOString();
-  const date = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+  const date   = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
 
   let item, protein = 0, calories = 0, carbs = 0, fat = 0, sugar = 0, sodium = 0;
 
@@ -241,17 +254,33 @@ function logLiquid(body) {
       item = 'Mimosa';
       protein = 1; calories = 135; carbs = 16; fat = 0; sugar = 10; sodium = 5;
       break;
+    case 'redwine':
+      item = 'Red Wine (Can)';
+      protein = 0; calories = 200; carbs = 6; fat = 0; sugar = 1; sodium = 0;
+      break;
+    case 'surfside':
+      item = 'Surfside Iced Tea';
+      protein = 0; calories = 100; carbs = 2; fat = 0; sugar = 1; sodium = 0;
+      break;
+    case 'titos':
+      item = "Tito's & Soda";
+      protein = 0; calories = 98; carbs = 0; fat = 0; sugar = 0; sodium = 0;
+      break;
+    case 'martini':
+      item = 'Dirty Martini';
+      protein = 0; calories = 180; carbs = 2; fat = 0; sugar = 0; sodium = 200;
+      break;
     default:
       return { error: 'Unknown liquid type: ' + type };
   }
 
-  const sheet = getSheet('Log');
+  const sheet = getSheet(getSheetName('Log', user));
   sheet.appendRow([
     timestamp, date, type, item, amount,
     protein, calories, carbs, fat, sugar, sodium
   ]);
 
-  rebuildDailySummary(date);
+  rebuildDailySummary(date, user);
 
   return {
     success: true,
@@ -260,40 +289,50 @@ function logLiquid(body) {
 }
 
 // ---- getToday ----
-function getToday(dateParam) {
-  const date = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
-  const sheet = getSheet('Log');
-  const data = sheet.getDataRange().getValues();
+function getToday(dateParam, user) {
+  user = (user || 'aj').toLowerCase();
+  const date  = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const sheet = getSheet(getSheetName('Log', user));
+  const data  = sheet.getDataRange().getValues();
 
   let protein = 0, calories = 0, carbs = 0, fat = 0, sugar = 0, sodium = 0;
-  let waterOz = 0, coffeeCount = 0, coorsCount = 0, bourbonCount = 0, mimosaCount = 0;
+  let waterOz = 0, coffeeCount = 0;
+  let coorsCount = 0, bourbonCount = 0, mimosaCount = 0;
+  let redwineCount = 0, surfsideCount = 0, titosCount = 0, martiniCount = 0;
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     if (row[1] !== date && Utilities.formatDate(new Date(row[1]), TZ, 'yyyy-MM-dd') !== date) continue;
 
     const type = row[2];
-    protein += row[5] || 0;
+    protein  += row[5] || 0;
     calories += row[6] || 0;
-    carbs += row[7] || 0;
-    fat += row[8] || 0;
-    sugar += row[9] || 0;
-    sodium += row[10] || 0;
+    carbs    += row[7] || 0;
+    fat      += row[8] || 0;
+    sugar    += row[9] || 0;
+    sodium   += row[10] || 0;
 
-    if (type === 'water') waterOz += row[4] || 0;
-    if (type === 'coffee') coffeeCount += 1;
-    if (type === 'coors') coorsCount += 1;
-    if (type === 'bourbon') bourbonCount += 1;
-    if (type === 'mimosa') mimosaCount += 1;
+    if (type === 'water')    waterOz      += row[4] || 0;
+    if (type === 'coffee')   coffeeCount  += 1;
+    if (type === 'coors')    coorsCount   += 1;
+    if (type === 'bourbon')  bourbonCount += 1;
+    if (type === 'mimosa')   mimosaCount  += 1;
+    if (type === 'redwine')  redwineCount += 1;
+    if (type === 'surfside') surfsideCount+= 1;
+    if (type === 'titos')    titosCount   += 1;
+    if (type === 'martini')  martiniCount += 1;
   }
 
-  return { date, protein, calories, carbs, fat, sugar, sodium, waterOz, coffeeCount, coorsCount, bourbonCount, mimosaCount };
+  return { date, protein, calories, carbs, fat, sugar, sodium, waterOz, coffeeCount,
+           coorsCount, bourbonCount, mimosaCount,
+           redwineCount, surfsideCount, titosCount, martiniCount };
 }
 
 // ---- getTodayLog ----
-function getTodayLog(dateParam) {
+function getTodayLog(dateParam, user) {
+  user = (user || 'aj').toLowerCase();
   const date = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
-  const sheet = getSheet('Log');
+  const sheet = getSheet(getSheetName('Log', user));
   const data = sheet.getDataRange().getValues();
   const entries = [];
 
@@ -323,84 +362,96 @@ function getTodayLog(dateParam) {
 }
 
 // ---- rebuildDailySummary ----
-function rebuildDailySummary(date) {
-  if (!date) {
-    date = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
-  }
+function rebuildDailySummary(date, user) {
+  user = (user || 'aj').toLowerCase();
+  if (!date) date = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
 
-  const logSheet = getSheet('Log');
-  const logData = logSheet.getDataRange().getValues();
+  const logSheet = getSheet(getSheetName('Log', user));
+  const logData  = logSheet.getDataRange().getValues();
 
-  let protein = 0, calories = 0, waterOz = 0, coffeeCount = 0, coorsCount = 0, bourbonCount = 0, mimosaCount = 0;
+  let protein = 0, calories = 0, waterOz = 0, coffeeCount = 0;
+  let coorsCount = 0, bourbonCount = 0, mimosaCount = 0;
+  let redwineCount = 0, surfsideCount = 0, titosCount = 0, martiniCount = 0;
 
   for (let i = 1; i < logData.length; i++) {
     const row = logData[i];
-    const rowDate = row[1] instanceof Date
-      ? Utilities.formatDate(row[1], TZ, 'yyyy-MM-dd')
-      : row[1];
+    const rowDate = row[1] instanceof Date ? Utilities.formatDate(row[1], TZ, 'yyyy-MM-dd') : row[1];
     if (rowDate !== date) continue;
-
-    protein += row[5] || 0;
+    protein  += row[5] || 0;
     calories += row[6] || 0;
     const type = row[2];
-    if (type === 'water') waterOz += row[4] || 0;
-    if (type === 'coffee') coffeeCount += 1;
-    if (type === 'coors') coorsCount += 1;
-    if (type === 'bourbon') bourbonCount += 1;
-    if (type === 'mimosa') mimosaCount += 1;
+    if (type === 'water')    waterOz      += row[4] || 0;
+    if (type === 'coffee')   coffeeCount  += 1;
+    if (type === 'coors')    coorsCount   += 1;
+    if (type === 'bourbon')  bourbonCount += 1;
+    if (type === 'mimosa')   mimosaCount  += 1;
+    if (type === 'redwine')  redwineCount += 1;
+    if (type === 'surfside') surfsideCount+= 1;
+    if (type === 'titos')    titosCount   += 1;
+    if (type === 'martini')  martiniCount += 1;
   }
 
-  // Check if workout exists for this date
-  const workoutSheet = getSheet('Workouts');
-  const workoutData = workoutSheet.getDataRange().getValues();
+  const workoutSheetName = user === 'michele' ? 'WorkoutsMichele' : 'Workouts';
+  const workoutSheet = getSheet(workoutSheetName);
   let workoutDone = 'No';
-  for (let i = 1; i < workoutData.length; i++) {
-    const rowDate = workoutData[i][0] instanceof Date
-      ? Utilities.formatDate(workoutData[i][0], TZ, 'yyyy-MM-dd')
-      : workoutData[i][0];
-    if (rowDate === date) { workoutDone = 'Yes'; break; }
+  if (workoutSheet) {
+    const workoutData = workoutSheet.getDataRange().getValues();
+    for (let i = 1; i < workoutData.length; i++) {
+      const rowDate = workoutData[i][0] instanceof Date
+        ? Utilities.formatDate(workoutData[i][0], TZ, 'yyyy-MM-dd') : workoutData[i][0];
+      if (rowDate === date) { workoutDone = 'Yes'; break; }
+    }
   }
 
-  // Find or create the row for this date in DailySummary
-  const summarySheet = getSheet('DailySummary');
-  const summaryData = summarySheet.getDataRange().getValues();
+  const summarySheet = getSheet(getSheetName('DailySummary', user));
+  const summaryData  = summarySheet.getDataRange().getValues();
   let foundRow = -1;
-
   for (let i = 1; i < summaryData.length; i++) {
     const rowDate = summaryData[i][0] instanceof Date
-      ? Utilities.formatDate(summaryData[i][0], TZ, 'yyyy-MM-dd')
-      : summaryData[i][0];
+      ? Utilities.formatDate(summaryData[i][0], TZ, 'yyyy-MM-dd') : summaryData[i][0];
     if (rowDate === date) { foundRow = i + 1; break; }
   }
 
-  const rowData = [date, protein, calories, waterOz, coffeeCount, coorsCount, bourbonCount, workoutDone, '', mimosaCount];
-
-  if (foundRow > 0) {
-    const range = summarySheet.getRange(foundRow, 1, 1, 10);
-    // Preserve bodyweight if already entered
-    const existing = range.getValues()[0];
-    rowData[8] = existing[8] || '';
-    range.setValues([rowData]);
+  if (user === 'michele') {
+    // [date, protein, calories, waterOz, coffeeCount, redwineCount, surfsideCount, titosCount, martiniCount, workoutDone, bodyweight]
+    const rowData = [date, protein, calories, waterOz, coffeeCount, redwineCount, surfsideCount, titosCount, martiniCount, workoutDone, ''];
+    if (foundRow > 0) {
+      const range = summarySheet.getRange(foundRow, 1, 1, 11);
+      rowData[10] = range.getValues()[0][10] || '';
+      range.setValues([rowData]);
+    } else {
+      summarySheet.appendRow(rowData);
+    }
   } else {
-    summarySheet.appendRow(rowData);
+    // [date, protein, calories, waterOz, coffeeCount, coorsCount, bourbonCount, workoutDone, bodyweight, mimosaCount]
+    const rowData = [date, protein, calories, waterOz, coffeeCount, coorsCount, bourbonCount, workoutDone, '', mimosaCount];
+    if (foundRow > 0) {
+      const range = summarySheet.getRange(foundRow, 1, 1, 10);
+      rowData[8] = range.getValues()[0][8] || '';
+      range.setValues([rowData]);
+    } else {
+      summarySheet.appendRow(rowData);
+    }
   }
 }
 
 // ---- getDaySummary ----
-function getDaySummary(dateParam) {
-  const date = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
-  const totals = getToday(date);
-  const log = getTodayLog(date);
+function getDaySummary(dateParam, user) {
+  user = (user || 'aj').toLowerCase();
+  const date   = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const totals = getToday(date, user);
+  const log    = getTodayLog(date, user);
 
-  const summarySheet = getSheet('DailySummary');
-  const summaryData = summarySheet.getDataRange().getValues();
+  const summarySheet = getSheet(getSheetName('DailySummary', user));
+  const summaryData  = summarySheet.getDataRange().getValues();
   totals.workoutDone = 'No';
+  const wdCol = user === 'michele' ? 9 : 7;
   for (let i = 1; i < summaryData.length; i++) {
     const rowDate = summaryData[i][0] instanceof Date
       ? Utilities.formatDate(summaryData[i][0], TZ, 'yyyy-MM-dd')
       : summaryData[i][0];
     if (rowDate === date) {
-      totals.workoutDone = summaryData[i][7] || 'No';
+      totals.workoutDone = summaryData[i][wdCol] || 'No';
       break;
     }
   }
@@ -409,58 +460,62 @@ function getDaySummary(dateParam) {
 }
 
 // ---- getYesterday ----
-function getYesterday() {
+function getYesterday(user) {
+  user = (user || 'aj').toLowerCase();
   const now = new Date();
   now.setDate(now.getDate() - 1);
   const date = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
 
-  // Get yesterday's log totals
-  const logSheet = getSheet('Log');
-  const logData = logSheet.getDataRange().getValues();
+  const logSheet = getSheet(getSheetName('Log', user));
+  const logData  = logSheet.getDataRange().getValues();
 
-  let protein = 0, calories = 0, carbs = 0, fat = 0, waterOz = 0;
-  let coffeeCount = 0, coorsCount = 0, bourbonCount = 0, mimosaCount = 0;
+  let protein = 0, calories = 0, carbs = 0, fat = 0, waterOz = 0, coffeeCount = 0;
+  let coorsCount = 0, bourbonCount = 0, mimosaCount = 0;
+  let redwineCount = 0, surfsideCount = 0, titosCount = 0, martiniCount = 0;
   let foodItems = [];
 
   for (let i = 1; i < logData.length; i++) {
     const row = logData[i];
-    const rowDate = row[1] instanceof Date
-      ? Utilities.formatDate(row[1], TZ, 'yyyy-MM-dd')
-      : row[1];
+    const rowDate = row[1] instanceof Date ? Utilities.formatDate(row[1], TZ, 'yyyy-MM-dd') : row[1];
     if (rowDate !== date) continue;
 
     const type = row[2];
-    protein += row[5] || 0;
+    protein  += row[5] || 0;
     calories += row[6] || 0;
-    carbs += row[7] || 0;
-    fat += row[8] || 0;
+    carbs    += row[7] || 0;
+    fat      += row[8] || 0;
 
-    if (type === 'water') waterOz += row[4] || 0;
-    if (type === 'coffee') coffeeCount += 1;
-    if (type === 'coors') coorsCount += 1;
-    if (type === 'bourbon') bourbonCount += 1;
-    if (type === 'mimosa') mimosaCount += 1;
-    if (type === 'food') foodItems.push(row[3]);
+    if (type === 'water')    waterOz      += row[4] || 0;
+    if (type === 'coffee')   coffeeCount  += 1;
+    if (type === 'coors')    coorsCount   += 1;
+    if (type === 'bourbon')  bourbonCount += 1;
+    if (type === 'mimosa')   mimosaCount  += 1;
+    if (type === 'redwine')  redwineCount += 1;
+    if (type === 'surfside') surfsideCount+= 1;
+    if (type === 'titos')    titosCount   += 1;
+    if (type === 'martini')  martiniCount += 1;
+    if (type === 'food')     foodItems.push(row[3]);
   }
 
-  // Check if workout happened
-  const workoutSheet = getSheet('Workouts');
-  const workoutData = workoutSheet.getDataRange().getValues();
-  let workedOut = false;
-  let workoutSummary = [];
-  for (let i = 1; i < workoutData.length; i++) {
-    const rowDate = workoutData[i][0] instanceof Date
-      ? Utilities.formatDate(workoutData[i][0], TZ, 'yyyy-MM-dd')
-      : workoutData[i][0];
-    if (rowDate === date) {
-      workedOut = true;
-      workoutSummary.push(workoutData[i][1] + ': ' + workoutData[i][2]);
+  const workoutSheetName = user === 'michele' ? 'WorkoutsMichele' : 'Workouts';
+  const workoutSheet = getSheet(workoutSheetName);
+  let workedOut = false, workoutSummary = [];
+  if (workoutSheet) {
+    const workoutData = workoutSheet.getDataRange().getValues();
+    for (let i = 1; i < workoutData.length; i++) {
+      const rowDate = workoutData[i][0] instanceof Date
+        ? Utilities.formatDate(workoutData[i][0], TZ, 'yyyy-MM-dd') : workoutData[i][0];
+      if (rowDate === date) {
+        workedOut = true;
+        workoutSummary.push(user === 'michele' ? workoutData[i][2] : workoutData[i][1] + ': ' + workoutData[i][2]);
+      }
     }
   }
 
   return {
-    date, protein, calories, carbs, fat, waterOz,
-    coffeeCount, coorsCount, bourbonCount, mimosaCount,
+    date, protein, calories, carbs, fat, waterOz, coffeeCount,
+    coorsCount, bourbonCount, mimosaCount,
+    redwineCount, surfsideCount, titosCount, martiniCount,
     workedOut, workoutSummary, foodItems,
     hasData: protein > 0 || calories > 0 || waterOz > 0
   };
@@ -494,45 +549,51 @@ function getTodayWorkout() {
 }
 
 // ---- logBodyweight ----
-function logBodyweight(body) {
+function logBodyweight(body, user) {
+  user = (user || 'aj').toLowerCase();
   const weight = parseFloat(body.weight);
   if (!weight || weight < 50 || weight > 500) return { error: 'Invalid weight' };
 
-  const date = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
-  const summarySheet = getSheet('DailySummary');
-  const data = summarySheet.getDataRange().getValues();
+  const date         = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const summarySheet = getSheet(getSheetName('DailySummary', user));
+  const data         = summarySheet.getDataRange().getValues();
   let foundRow = -1;
 
   for (let i = 1; i < data.length; i++) {
     const rowDate = data[i][0] instanceof Date
-      ? Utilities.formatDate(data[i][0], TZ, 'yyyy-MM-dd')
-      : data[i][0];
+      ? Utilities.formatDate(data[i][0], TZ, 'yyyy-MM-dd') : data[i][0];
     if (rowDate === date) { foundRow = i + 1; break; }
   }
 
+  // Michele bodyweight = col 11 (1-indexed), AJ = col 9
+  const bwCol = user === 'michele' ? 11 : 9;
   if (foundRow > 0) {
-    summarySheet.getRange(foundRow, 9).setValue(weight);
+    summarySheet.getRange(foundRow, bwCol).setValue(weight);
   } else {
-    summarySheet.appendRow([date, 0, 0, 0, 0, 0, 0, 'No', weight]);
+    if (user === 'michele') {
+      summarySheet.appendRow([date, 0, 0, 0, 0, 0, 0, 0, 0, 'No', weight]);
+    } else {
+      summarySheet.appendRow([date, 0, 0, 0, 0, 0, 0, 'No', weight, 0]);
+    }
   }
 
-  return { success: true, date: date, weight: weight };
+  return { success: true, date, weight };
 }
 
 // ---- getWeightHistory ----
-function getWeightHistory() {
-  const summarySheet = getSheet('DailySummary');
-  const data = summarySheet.getDataRange().getValues();
-  const history = [];
+function getWeightHistory(user) {
+  user = (user || 'aj').toLowerCase();
+  const summarySheet = getSheet(getSheetName('DailySummary', user));
+  const data         = summarySheet.getDataRange().getValues();
+  const bwColIdx     = user === 'michele' ? 10 : 8; // 0-indexed
+  const history      = [];
 
   for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const weight = row[8];
+    const row    = data[i];
+    const weight = row[bwColIdx];
     if (!weight) continue;
-    const date = row[0] instanceof Date
-      ? Utilities.formatDate(row[0], TZ, 'yyyy-MM-dd')
-      : row[0];
-    history.push({ date: date, weight: parseFloat(weight) });
+    const date = row[0] instanceof Date ? Utilities.formatDate(row[0], TZ, 'yyyy-MM-dd') : row[0];
+    history.push({ date, weight: parseFloat(weight) });
   }
 
   history.sort((a, b) => a.date.localeCompare(b.date));
@@ -703,7 +764,8 @@ function callClaude(text, mode, portions) {
 
 // ---- logFoodDirect ----
 // Writes a food entry directly to Log without requiring a Foods library entry.
-function logFoodDirect(body) {
+function logFoodDirect(body, user) {
+  user = (user || 'aj').toLowerCase();
   const now = new Date();
   const timestamp = now.toISOString();
   const date = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
@@ -716,10 +778,10 @@ function logFoodDirect(body) {
   const sodium   = parseFloat(body.sodium)   || 0;
   const name     = body.name || 'Recipe';
 
-  const sheet = getSheet('Log');
+  const sheet = getSheet(getSheetName('Log', user));
   sheet.appendRow([timestamp, date, 'food', name, 1, protein, calories, carbs, fat, sugar, sodium]);
 
-  rebuildDailySummary(date);
+  rebuildDailySummary(date, user);
 
   return {
     success: true,
@@ -727,30 +789,101 @@ function logFoodDirect(body) {
   };
 }
 
-// ---- getSummaryHistory ----
-function getSummaryHistory() {
-  const sheet = getSheet('DailySummary');
+// ---- Michele Activity Logging ----
+function logActivity(body) {
+  const activityType = body.activityType || 'Activity';
+  const date         = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const timestamp    = new Date().toISOString();
+
+  const sheet = getSheet('WorkoutsMichele');
+  if (!sheet) return { error: 'WorkoutsMichele not found. Run setupMicheleSheets() first.' };
+  sheet.appendRow([date, timestamp, activityType, '', '']);
+
+  rebuildDailySummary(date, 'michele');
+  return { success: true, activityType };
+}
+
+function getMicheleActivityToday(date) {
+  const sheet = getSheet('WorkoutsMichele');
+  if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
+  return data.slice(1).filter(r => {
+    const rowDate = r[0] instanceof Date ? Utilities.formatDate(r[0], TZ, 'yyyy-MM-dd') : String(r[0]);
+    return rowDate === date;
+  }).map(r => ({ date: r[0], activityType: r[2] }));
+}
+
+function getMicheleRecentActivities() {
+  const sheet = getSheet('WorkoutsMichele');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  return data.slice(1).filter(r => r[0] && r[2]).map(r => ({
+    date: r[0] instanceof Date ? Utilities.formatDate(r[0], TZ, 'yyyy-MM-dd') : String(r[0]),
+    activityType: r[2]
+  })).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// ---- setupMicheleSheets ----
+// Run once from Apps Script editor to create Michele's sheet tabs.
+function setupMicheleSheets() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  if (!ss.getSheetByName('LogMichele')) {
+    const s = ss.insertSheet('LogMichele');
+    s.appendRow(['timestamp','date','type','item','servings','protein','calories','carbs','fat','sugar','sodium']);
+  }
+  if (!ss.getSheetByName('DailySummaryMichele')) {
+    const s = ss.insertSheet('DailySummaryMichele');
+    s.appendRow(['date','protein','calories','waterOz','coffeeCount','redwineCount','surfsideCount','titosCount','martiniCount','workoutDone','bodyweight']);
+  }
+  if (!ss.getSheetByName('WorkoutsMichele')) {
+    const s = ss.insertSheet('WorkoutsMichele');
+    s.appendRow(['date','timestamp','activityType','notes','extra']);
+  }
+
+  return { success: true, message: 'Michele\'s sheets created. She\'s ready to go!' };
+}
+
+// ---- getSummaryHistory ----
+function getSummaryHistory(user) {
+  user = (user || 'aj').toLowerCase();
+  const sheet = getSheet(getSheetName('DailySummary', user));
+  const data  = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
 
   const history = [];
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     if (!row[0]) continue;
-    const date = row[0] instanceof Date
-      ? Utilities.formatDate(row[0], TZ, 'yyyy-MM-dd')
-      : row[0];
-    history.push({
-      date,
-      protein:      row[1] || 0,
-      calories:     row[2] || 0,
-      waterOz:      row[3] || 0,
-      coffeeCount:  row[4] || 0,
-      coorsCount:   row[5] || 0,
-      bourbonCount: row[6] || 0,
-      workoutDone:  row[7] || 'No',
-      bodyweight:   row[8] || null
-    });
+    const date = row[0] instanceof Date ? Utilities.formatDate(row[0], TZ, 'yyyy-MM-dd') : row[0];
+    if (user === 'michele') {
+      history.push({
+        date,
+        protein:       row[1]  || 0,
+        calories:      row[2]  || 0,
+        waterOz:       row[3]  || 0,
+        coffeeCount:   row[4]  || 0,
+        redwineCount:  row[5]  || 0,
+        surfsideCount: row[6]  || 0,
+        titosCount:    row[7]  || 0,
+        martiniCount:  row[8]  || 0,
+        workoutDone:   row[9]  || 'No',
+        bodyweight:    row[10] || null
+      });
+    } else {
+      history.push({
+        date,
+        protein:      row[1] || 0,
+        calories:     row[2] || 0,
+        waterOz:      row[3] || 0,
+        coffeeCount:  row[4] || 0,
+        coorsCount:   row[5] || 0,
+        bourbonCount: row[6] || 0,
+        workoutDone:  row[7] || 'No',
+        bodyweight:   row[8] || null,
+        mimosaCount:  row[9] || 0
+      });
+    }
   }
 
   history.sort((a, b) => a.date.localeCompare(b.date));
@@ -1082,54 +1215,57 @@ function getWorkoutHistory() {
 
 // ---- getHomeData ----
 // Single endpoint that replaces getFoods + getDaySummary + getYesterday on home screen load.
-function getHomeData(dateParam) {
-  const date = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
-  const daySummary = getDaySummary(date);
-  const yesterday  = getYesterday();
+function getHomeData(dateParam, user) {
+  user = (user || 'aj').toLowerCase();
+  const date       = dateParam || Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const daySummary = getDaySummary(date, user);
+  const yesterday  = getYesterday(user);
   const foods      = getFoods();
+  const recentHistory = getSummaryHistory(user).slice(-30);
 
-  // Next workout day for preview
+  if (user === 'michele') {
+    const todayActivities = getMicheleActivityToday(date);
+    return { foods, daySummary, yesterday, nextWorkoutDay: null, recentHistory, todayActivities };
+  }
+
   const rotation = ['CHEST', 'PULL', 'SHOULDERS', 'LEGS'];
   let nextDay = 'CHEST';
   try {
     const sessSheet = getSheet('WorkoutSessions');
     if (sessSheet) {
-      const data = sessSheet.getDataRange().getValues();
+      const sessData = sessSheet.getDataRange().getValues();
       let lastDay = null, latestDate = '';
-      for (let i = 1; i < data.length; i++) {
-        const rowDate = data[i][1] instanceof Date
-          ? Utilities.formatDate(data[i][1], TZ, 'yyyy-MM-dd')
-          : String(data[i][1]);
-        if (rowDate > latestDate) { latestDate = rowDate; lastDay = data[i][2]; }
+      for (let i = 1; i < sessData.length; i++) {
+        const rowDate = sessData[i][1] instanceof Date
+          ? Utilities.formatDate(sessData[i][1], TZ, 'yyyy-MM-dd')
+          : String(sessData[i][1]);
+        if (rowDate > latestDate) { latestDate = rowDate; lastDay = sessData[i][2]; }
       }
       const lastIdx = lastDay ? rotation.indexOf(lastDay) : -1;
       nextDay = rotation[(lastIdx + 1) % rotation.length];
     }
   } catch (e) { /* ignore */ }
 
-  const recentHistory = getSummaryHistory().slice(-30);
   return { foods, daySummary, yesterday, nextWorkoutDay: nextDay, recentHistory };
 }
 
 // ---- deleteLogEntry ----
 // Deletes a single Log row by matching timestamp. Used for accidental entries.
-function deleteLogEntry(body) {
+function deleteLogEntry(body, user) {
+  user = (user || 'aj').toLowerCase();
   const timestamp = body.timestamp;
   if (!timestamp) return { error: 'timestamp required' };
 
-  const sheet = getSheet('Log');
+  const sheet = getSheet(getSheetName('Log', user));
   const data  = sheet.getDataRange().getValues();
 
   for (let i = data.length - 1; i >= 1; i--) {
-    const rowTs = data[i][0] instanceof Date
-      ? data[i][0].toISOString()
-      : String(data[i][0]);
+    const rowTs = data[i][0] instanceof Date ? data[i][0].toISOString() : String(data[i][0]);
     if (rowTs === timestamp || rowTs.startsWith(timestamp.replace('Z', ''))) {
       sheet.deleteRow(i + 1);
       const date = data[i][1] instanceof Date
-        ? Utilities.formatDate(data[i][1], TZ, 'yyyy-MM-dd')
-        : String(data[i][1]);
-      rebuildDailySummary(date);
+        ? Utilities.formatDate(data[i][1], TZ, 'yyyy-MM-dd') : String(data[i][1]);
+      rebuildDailySummary(date, user);
       return { success: true };
     }
   }
@@ -1138,34 +1274,39 @@ function deleteLogEntry(body) {
 
 // ---- getCoachAdvice ----
 // Pulls recent data from sheets and sends it + user's message to Claude.
-function getCoachAdvice(body) {
+function getCoachAdvice(body, user) {
+  user = user || (body.user || 'aj').toLowerCase();
   const message = body.message || 'Review my recent data and give me tips.';
-  const targets = body.targets || { protein: 190, calories: 2300, water: 128 };
+  const targets = body.targets || (user === 'michele'
+    ? { protein: 110, calories: 1500, water: 64 }
+    : { protein: 190, calories: 2300, water: 128 });
 
-  const summaryHistory = getSummaryHistory().slice(-14);
-  const workoutHistory = getWorkoutHistory().slice(0, 8);
+  const summaryHistory = getSummaryHistory(user).slice(-14);
 
   const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   const past  = summaryHistory.filter(h => h.date <= today);
   const n     = past.length;
 
   let ctx = 'TODAY\'S DATE: ' + today + '\n\n';
+  ctx += 'USER: ' + (user === 'michele' ? 'Michele' : 'AJ') + '\n';
   ctx += 'USER TARGETS: ' + targets.protein + 'g protein | ' +
          targets.calories + ' cal | ' + targets.water + 'oz water\n\n';
 
   if (n > 0) {
-    const avgProt = Math.round(past.reduce((s, h) => s + h.protein, 0) / n);
-    const avgCal  = Math.round(past.reduce((s, h) => s + h.calories, 0) / n);
-    const avgWater = Math.round(past.reduce((s, h) => s + h.waterOz, 0) / n);
-    const protHits = past.filter(h => h.protein >= targets.protein).length;
+    const avgProt     = Math.round(past.reduce((s, h) => s + h.protein, 0)  / n);
+    const avgCal      = Math.round(past.reduce((s, h) => s + h.calories, 0) / n);
+    const avgWater    = Math.round(past.reduce((s, h) => s + h.waterOz, 0)  / n);
+    const protHits    = past.filter(h => h.protein >= targets.protein).length;
     const workoutDays = past.filter(h => h.workoutDone === 'Yes').length;
-    const drinks = past.reduce((s, h) => s + (h.coorsCount || 0) + (h.bourbonCount || 0) + (h.mimosaCount || 0), 0);
+    const drinks = user === 'michele'
+      ? past.reduce((s, h) => s + (h.redwineCount||0) + (h.surfsideCount||0) + (h.titosCount||0) + (h.martiniCount||0), 0)
+      : past.reduce((s, h) => s + (h.coorsCount||0) + (h.bourbonCount||0) + (h.mimosaCount||0), 0);
 
     ctx += 'LAST ' + n + ' DAYS AVERAGES:\n';
     ctx += '  Protein: ' + avgProt + 'g avg (goal hit ' + protHits + '/' + n + ' days)\n';
     ctx += '  Calories: ' + avgCal + ' avg\n';
     ctx += '  Water: ' + avgWater + 'oz avg\n';
-    ctx += '  Workouts: ' + workoutDays + ' of ' + n + ' days\n';
+    ctx += '  ' + (user === 'michele' ? 'Active days' : 'Workouts') + ': ' + workoutDays + ' of ' + n + ' days\n';
     ctx += '  Drinks logged: ' + drinks + ' total\n\n';
   }
 
@@ -1176,24 +1317,41 @@ function getCoachAdvice(body) {
            (h.bodyweight ? ' / ' + h.bodyweight + 'lbs' : '') + '\n';
   });
 
-  if (workoutHistory.length > 0) {
-    ctx += '\nRECENT WORKOUTS:\n';
-    workoutHistory.slice(0, 5).forEach(s => {
-      const exCount = new Set(s.sets.map(x => x.exerciseName)).size;
-      ctx += s.date + ': ' + s.dayName + ' — ' + exCount + ' exercises / ' + s.sets.length + ' sets\n';
-    });
+  if (user === 'michele') {
+    const actHistory = getMicheleRecentActivities();
+    if (actHistory.length > 0) {
+      ctx += '\nRECENT ACTIVITIES:\n';
+      actHistory.slice(0, 10).forEach(a => {
+        ctx += a.date + ': ' + a.activityType + '\n';
+      });
+    }
+  } else {
+    const workoutHistory = getWorkoutHistory().slice(0, 8);
+    if (workoutHistory.length > 0) {
+      ctx += '\nRECENT WORKOUTS:\n';
+      workoutHistory.slice(0, 5).forEach(s => {
+        const exCount = new Set(s.sets.map(x => x.exerciseName)).size;
+        ctx += s.date + ': ' + s.dayName + ' — ' + exCount + ' exercises / ' + s.sets.length + ' sets\n';
+      });
+    }
   }
 
   const apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
   if (!apiKey) return { error: 'CLAUDE_API_KEY not set in Script Properties.' };
 
-  const systemPrompt =
-    'You are a concise, no-BS fitness and nutrition coach embedded in "The Grind" tracking app. ' +
-    'The user tracks protein, calories, water, bodyweight, and gym workouts daily. ' +
-    'Give practical, personalized advice based on their actual data. ' +
-    'Be direct and encouraging. Keep responses to 2-3 short paragraphs max. ' +
-    'Use specific numbers from their data when relevant. No generic filler.\n\n' +
-    'THEIR DATA:\n' + ctx;
+  const systemPrompt = user === 'michele'
+    ? 'You are a concise, supportive nutrition and wellness coach in "The Grind" app. ' +
+      'Michele is 5\'3", 135 lbs, working to lose 5-10 lbs. She does Club Pilates and 2-mile walks. ' +
+      'She tracks protein, calories, water, and bodyweight daily. ' +
+      'Be encouraging and direct. Highlight wins, gently flag patterns that might slow progress. ' +
+      'Keep responses to 2-3 short paragraphs. Use specific numbers from her data. No generic filler.\n\n' +
+      'HER DATA:\n' + ctx
+    : 'You are a concise, no-BS fitness and nutrition coach embedded in "The Grind" tracking app. ' +
+      'The user tracks protein, calories, water, bodyweight, and gym workouts daily. ' +
+      'Give practical, personalized advice based on their actual data. ' +
+      'Be direct and encouraging. Keep responses to 2-3 short paragraphs max. ' +
+      'Use specific numbers from their data when relevant. No generic filler.\n\n' +
+      'THEIR DATA:\n' + ctx;
 
   try {
     const response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
