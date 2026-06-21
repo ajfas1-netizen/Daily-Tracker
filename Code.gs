@@ -240,7 +240,11 @@ function logLiquid(body, user) {
       break;
     case 'coffee':
       item = 'Coffee w/ Oat Milk & Syrup';
-      protein = 0; calories = 75; carbs = 17; fat = 1; sugar = 15; sodium = 0;
+      if (user === 'michele') {
+        calories = 43; carbs = 9; fat = 1; sugar = 7;
+      } else {
+        calories = 75; carbs = 17; fat = 1; sugar = 15;
+      }
       break;
     case 'coors':
       item = 'Coors Light';

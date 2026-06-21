@@ -540,7 +540,7 @@
     </div>
   </div>
   <!-- Michele drinks -->
-  <div class="drink-row drink-row-2x2" id="micheleDrinks" style="display:none">
+  <div class="drink-row" id="micheleDrinks" style="display:none">
     <div class="drink-chip redwine">
       <span class="dc-label">Red Wine</span>
       <span class="dc-val" id="totalRedwine">0</span>
@@ -556,6 +556,10 @@
     <div class="drink-chip martini">
       <span class="dc-label">Martini</span>
       <span class="dc-val" id="totalMartini">0</span>
+    </div>
+    <div class="drink-chip mimosa">
+      <span class="dc-label">Mimosa</span>
+      <span class="dc-val" id="mTotalMimosa">0</span>
     </div>
   </div>
 </div>
@@ -644,16 +648,15 @@
 </div>
 <!-- Michele quick-taps -->
 <div class="quick-taps" id="micheleQuickTaps" style="display:none">
-  <button class="tap-btn tap-coffee" onclick="tapLiquid('coffee', this)"><span class="tap-icon">☕</span><span class="sub">75 cal</span></button>
-  <div class="water-group">
-    <button class="tap-btn" onclick="tapLiquid('water', this, 12)"><span class="tap-icon">💧</span><span class="sub">12 oz</span></button>
-    <button class="tap-btn" onclick="tapLiquid('water', this, 24)"><span class="tap-icon">💧💧</span><span class="sub">24 oz</span></button>
-    <button class="tap-btn" onclick="openCustomWater()"><span class="tap-icon" style="font-size:20px">＋</span><span class="sub">Custom</span></button>
+  <button class="tap-btn tap-coffee" onclick="tapLiquid('coffee', this)"><span class="tap-icon">☕</span><span class="sub">43 cal</span></button>
+  <button class="tap-btn" style="border-color:rgba(59,130,246,0.45)" onclick="tapLiquid('water', this, 30)"><span class="tap-icon">💧</span><span class="sub">30 oz</span></button>
+  <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+    <button class="tap-btn tap-redwine"  onclick="tapLiquid('redwine', this)"><span class="tap-icon">🍷</span><span class="sub">200 cal</span></button>
+    <button class="tap-btn tap-surfside" onclick="tapLiquid('surfside', this)"><span class="tap-icon">🧋</span><span class="sub">100 cal</span></button>
+    <button class="tap-btn tap-titos"    onclick="tapLiquid('titos', this)"><span class="tap-icon">🥃</span><span class="sub">98 cal</span></button>
+    <button class="tap-btn tap-martini"  onclick="tapLiquid('martini', this)"><span class="tap-icon">🍸</span><span class="sub">180 cal</span></button>
+    <button class="tap-btn tap-mimosa"   onclick="tapLiquid('mimosa', this)"><span class="tap-icon">🥂</span><span class="sub">135 cal</span></button>
   </div>
-  <button class="tap-btn tap-redwine"  onclick="tapLiquid('redwine', this)"><span class="tap-icon">🍷</span><span class="sub">200 cal</span></button>
-  <button class="tap-btn tap-surfside" onclick="tapLiquid('surfside', this)"><span class="tap-icon">🧋</span><span class="sub">100 cal</span></button>
-  <button class="tap-btn tap-titos"    onclick="tapLiquid('titos', this)"><span class="tap-icon">🥃</span><span class="sub">98 cal</span></button>
-  <button class="tap-btn tap-martini"  onclick="tapLiquid('martini', this)"><span class="tap-icon">🍸</span><span class="sub">180 cal</span></button>
 </div>
 
 
@@ -958,6 +961,7 @@ function renderTotals(t) {
     document.getElementById('totalSurfside').textContent = t.surfsideCount || 0;
     document.getElementById('totalTitos').textContent    = t.titosCount    || 0;
     document.getElementById('totalMartini').textContent  = t.martiniCount  || 0;
+    document.getElementById('mTotalMimosa').textContent  = t.mimosaCount   || 0;
   } else {
     document.getElementById('totalCoors').textContent   = t.coorsCount   || 0;
     document.getElementById('totalBourbon').textContent = t.bourbonCount || 0;
