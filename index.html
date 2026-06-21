@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Grind</title>
-<!-- v14 -->
+<!-- v15 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="The Grind">
@@ -144,7 +144,7 @@
   .water-mini-fill.hit { background: var(--green); }
 
   /* Drink row */
-  .drink-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+  .drink-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 6px; }
   .drink-chip {
     background: var(--card2); border: 1px solid var(--border); border-radius: 9px;
     padding: 7px 10px; display: flex; justify-content: space-between; align-items: center;
@@ -153,6 +153,7 @@
   .dc-val { font-size: 17px; font-weight: 800; }
   .drink-chip.coors   .dc-val { color: #fbbf24; }
   .drink-chip.bourbon .dc-val { color: #f87171; }
+  .drink-chip.mimosa  .dc-val { color: #f0c050; }
 
   /* ---- Next Workout Strip ---- */
   .next-workout-strip {
@@ -276,6 +277,7 @@
   .tap-coffee  { border-color: rgba(168,162,158,0.45); }
   .tap-coors   { border-color: rgba(245,158,11,0.45); }
   .tap-bourbon { border-color: rgba(248,113,133,0.45); }
+  .tap-mimosa  { border-color: rgba(240,192,80,0.45); }
   .water-group { display: flex; gap: 7px; }
   .water-group .tap-btn { flex: 1; padding: 17px 6px; font-size: 13px; border-color: rgba(59,130,246,0.45); }
   .tap-btn.flash::after {
@@ -515,6 +517,10 @@
       <span class="dc-label">Bourbon</span>
       <span class="dc-val" id="totalBourbon">0</span>
     </div>
+    <div class="drink-chip mimosa">
+      <span class="dc-label">Mimosa</span>
+      <span class="dc-val" id="totalMimosa">0</span>
+    </div>
   </div>
 </div>
 
@@ -595,6 +601,7 @@
   </div>
   <button class="tap-btn tap-coors" onclick="tapLiquid('coors', this)"><span class="tap-icon">🍺</span><span class="sub">102 cal</span></button>
   <button class="tap-btn tap-bourbon" onclick="tapLiquid('bourbon', this)"><span class="tap-icon">🥃</span><span class="sub">97 cal</span></button>
+  <button class="tap-btn tap-mimosa" onclick="tapLiquid('mimosa', this)"><span class="tap-icon">🥂</span><span class="sub">135 cal</span></button>
 </div>
 
 
@@ -867,6 +874,7 @@ function renderTotals(t) {
 
   document.getElementById('totalCoors').textContent   = t.coorsCount   || 0;
   document.getElementById('totalBourbon').textContent = t.bourbonCount || 0;
+  document.getElementById('totalMimosa').textContent  = t.mimosaCount  || 0;
 }
 
 // ---- Next Workout Preview ----
@@ -922,6 +930,7 @@ function renderLog(entries) {
     else if (n.includes('water'))   { icon = '💧'; borderColor = 'var(--accent)'; }
     else if (n.includes('coors') || n.includes('beer'))     { icon = '🍺'; borderColor = '#fbbf24'; }
     else if (n.includes('bourbon') || n.includes('whiskey')) { icon = '🥃'; borderColor = '#f87171'; }
+    else if (n.includes('mimosa') || n.includes('prosecco')) { icon = '🥂'; borderColor = '#f0c050'; }
     else if (e.protein >= 35)  { icon = '🥩'; borderColor = 'var(--green)'; }
     else if (e.protein > 0)    { icon = '🍗'; borderColor = 'var(--green)'; }
     const proteinPill = e.protein  > 0 ? `<span class="log-pill protein">${e.protein}p</span>` : '';

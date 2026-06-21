@@ -213,7 +213,7 @@ function logFood(body) {
 
 // ---- logLiquid ----
 function logLiquid(body) {
-  const type = body.type; // water, coffee, coors, bourbon
+  const type = body.type; // water, coffee, coors, bourbon, mimosa
   const amount = body.amount || 1;
   const now = new Date();
   const timestamp = now.toISOString();
@@ -236,6 +236,10 @@ function logLiquid(body) {
     case 'bourbon':
       item = 'Bourbon';
       protein = 0; calories = 97; carbs = 0; fat = 0; sugar = 0; sodium = 0;
+      break;
+    case 'mimosa':
+      item = 'Mimosa';
+      protein = 1; calories = 135; carbs = 16; fat = 0; sugar = 10; sodium = 5;
       break;
     default:
       return { error: 'Unknown liquid type: ' + type };
@@ -262,7 +266,7 @@ function getToday(dateParam) {
   const data = sheet.getDataRange().getValues();
 
   let protein = 0, calories = 0, carbs = 0, fat = 0, sugar = 0, sodium = 0;
-  let waterOz = 0, coffeeCount = 0, coorsCount = 0, bourbonCount = 0;
+  let waterOz = 0, coffeeCount = 0, coorsCount = 0, bourbonCount = 0, mimosaCount = 0;
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -280,9 +284,10 @@ function getToday(dateParam) {
     if (type === 'coffee') coffeeCount += 1;
     if (type === 'coors') coorsCount += 1;
     if (type === 'bourbon') bourbonCount += 1;
+    if (type === 'mimosa') mimosaCount += 1;
   }
 
-  return { date, protein, calories, carbs, fat, sugar, sodium, waterOz, coffeeCount, coorsCount, bourbonCount };
+  return { date, protein, calories, carbs, fat, sugar, sodium, waterOz, coffeeCount, coorsCount, bourbonCount, mimosaCount };
 }
 
 // ---- getTodayLog ----
@@ -326,7 +331,7 @@ function rebuildDailySummary(date) {
   const logSheet = getSheet('Log');
   const logData = logSheet.getDataRange().getValues();
 
-  let protein = 0, calories = 0, waterOz = 0, coffeeCount = 0, coorsCount = 0, bourbonCount = 0;
+  let protein = 0, calories = 0, waterOz = 0, coffeeCount = 0, coorsCount = 0, bourbonCount = 0, mimosaCount = 0;
 
   for (let i = 1; i < logData.length; i++) {
     const row = logData[i];
@@ -342,6 +347,7 @@ function rebuildDailySummary(date) {
     if (type === 'coffee') coffeeCount += 1;
     if (type === 'coors') coorsCount += 1;
     if (type === 'bourbon') bourbonCount += 1;
+    if (type === 'mimosa') mimosaCount += 1;
   }
 
   // Check if workout exists for this date
@@ -367,10 +373,10 @@ function rebuildDailySummary(date) {
     if (rowDate === date) { foundRow = i + 1; break; }
   }
 
-  const rowData = [date, protein, calories, waterOz, coffeeCount, coorsCount, bourbonCount, workoutDone, ''];
+  const rowData = [date, protein, calories, waterOz, coffeeCount, coorsCount, bourbonCount, workoutDone, '', mimosaCount];
 
   if (foundRow > 0) {
-    const range = summarySheet.getRange(foundRow, 1, 1, 9);
+    const range = summarySheet.getRange(foundRow, 1, 1, 10);
     // Preserve bodyweight if already entered
     const existing = range.getValues()[0];
     rowData[8] = existing[8] || '';
@@ -413,7 +419,7 @@ function getYesterday() {
   const logData = logSheet.getDataRange().getValues();
 
   let protein = 0, calories = 0, carbs = 0, fat = 0, waterOz = 0;
-  let coffeeCount = 0, coorsCount = 0, bourbonCount = 0;
+  let coffeeCount = 0, coorsCount = 0, bourbonCount = 0, mimosaCount = 0;
   let foodItems = [];
 
   for (let i = 1; i < logData.length; i++) {
@@ -433,6 +439,7 @@ function getYesterday() {
     if (type === 'coffee') coffeeCount += 1;
     if (type === 'coors') coorsCount += 1;
     if (type === 'bourbon') bourbonCount += 1;
+    if (type === 'mimosa') mimosaCount += 1;
     if (type === 'food') foodItems.push(row[3]);
   }
 
@@ -453,7 +460,7 @@ function getYesterday() {
 
   return {
     date, protein, calories, carbs, fat, waterOz,
-    coffeeCount, coorsCount, bourbonCount,
+    coffeeCount, coorsCount, bourbonCount, mimosaCount,
     workedOut, workoutSummary, foodItems,
     hasData: protein > 0 || calories > 0 || waterOz > 0
   };
@@ -1152,7 +1159,7 @@ function getCoachAdvice(body) {
     const avgWater = Math.round(past.reduce((s, h) => s + h.waterOz, 0) / n);
     const protHits = past.filter(h => h.protein >= targets.protein).length;
     const workoutDays = past.filter(h => h.workoutDone === 'Yes').length;
-    const drinks = past.reduce((s, h) => s + (h.coorsCount || 0) + (h.bourbonCount || 0), 0);
+    const drinks = past.reduce((s, h) => s + (h.coorsCount || 0) + (h.bourbonCount || 0) + (h.mimosaCount || 0), 0);
 
     ctx += 'LAST ' + n + ' DAYS AVERAGES:\n';
     ctx += '  Protein: ' + avgProt + 'g avg (goal hit ' + protHits + '/' + n + ' days)\n';
