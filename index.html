@@ -871,6 +871,14 @@ async function loadInsight() {
   textEl.textContent = 'Checking in on your data…';
   textEl.classList.remove('loaded');
   try {
+    const now = new Date();
+    const hour = now.getHours() + now.getMinutes() / 60;
+    // Waking day: 6am–9pm (15 hours). Clamp to 0–100%.
+    const dayPct = Math.round(Math.min(100, Math.max(0, ((hour - 6) / 15) * 100)));
+    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const insightMsg = `It is currently ${timeStr} — roughly ${dayPct}% through the day. ` +
+      `TODAY's logged numbers are partial (not end-of-day). Judge my pace, not whether I've finished. ` +
+      `If I'm on track given the time, say so. Give me ONE specific observation about today using real numbers. 2 sentences max. No generic advice.`;
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -878,7 +886,7 @@ async function loadInsight() {
         action: 'getCoachAdvice',
         targets,
         user: currentUser,
-        message: 'Look at my actual data above and give me ONE specific observation for today. Reference real numbers from my data — protein average, workout or activity frequency, weight trend, or streak. No generic advice. 2 sentences max.'
+        message: insightMsg
       })
     });
     const data = await res.json();

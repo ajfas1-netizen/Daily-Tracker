@@ -1290,11 +1290,20 @@ function getCoachAdvice(body, user) {
 
   const summaryHistory = getSummaryHistory(user).slice(-14);
 
-  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const now   = new Date();
+  const today = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+  const timeOfDay = Utilities.formatDate(now, TZ, 'h:mm a');
+  const hourOfDay = parseInt(Utilities.formatDate(now, TZ, 'H'), 10) +
+                    parseInt(Utilities.formatDate(now, TZ, 'mm'), 10) / 60;
+  // 6am–9pm waking window; clamp to 0–100
+  const dayPct = Math.min(100, Math.max(0, Math.round(((hourOfDay - 6) / 15) * 100)));
   const past  = summaryHistory.filter(h => h.date <= today);
   const n     = past.length;
 
-  let ctx = 'TODAY\'S DATE: ' + today + '\n\n';
+  let ctx = 'TODAY\'S DATE: ' + today + ' | CURRENT TIME: ' + timeOfDay +
+            ' (' + dayPct + '% through the day)\n';
+  ctx += 'NOTE: Today\'s logged numbers are PARTIAL (day is not over). ' +
+         'Evaluate pace, not end-of-day totals.\n\n';
   ctx += 'USER: ' + (user === 'michele' ? 'Michele' : 'AJ') + '\n';
   ctx += 'USER TARGETS: ' + targets.protein + 'g protein | ' +
          targets.calories + ' cal | ' + targets.water + 'oz water\n\n';
@@ -1333,7 +1342,7 @@ function getCoachAdvice(body, user) {
       });
     }
   } else {
-    const workoutHistory = getWorkoutHistory().slice(0, 8);
+    const workoutHistory = getWorkoutHistory(user).slice(0, 8);
     if (workoutHistory.length > 0) {
       ctx += '\nRECENT WORKOUTS:\n';
       workoutHistory.slice(0, 5).forEach(s => {
