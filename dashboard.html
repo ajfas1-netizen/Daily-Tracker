@@ -180,11 +180,11 @@
   <div class="section">
     <div class="section-title">Nutrition — Last 14 Days</div>
     <div class="chart-card">
-      <div class="chart-label">PROTEIN (g) <span style="color:#3b82f6;">&#9644;</span> &nbsp; Target 190g <span style="color:rgba(255,255,255,0.2);">- - -</span></div>
+      <div class="chart-label">PROTEIN (g) <span style="color:#3b82f6;">&#9644;</span> &nbsp; <span id="proteinTargetLabel">Target 190g</span> <span style="color:rgba(255,255,255,0.2);">- - -</span></div>
       <div class="chart-canvas-wrap"><canvas id="proteinChart"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-label">CALORIES <span style="color:#f59e0b;">&#9644;</span> &nbsp; Target 2,300 <span style="color:rgba(255,255,255,0.2);">- - -</span></div>
+      <div class="chart-label">CALORIES <span style="color:#f59e0b;">&#9644;</span> &nbsp; <span id="calorieTargetLabel">Target 2,300</span> <span style="color:rgba(255,255,255,0.2);">- - -</span></div>
       <div class="chart-canvas-wrap"><canvas id="calorieChart"></canvas></div>
     </div>
   </div>
@@ -279,6 +279,14 @@
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
+const currentUser = (localStorage.getItem('grind_user') || 'aj').toLowerCase();
+const PROFILE_DEFAULTS = { aj: { protein: 190, calories: 2300, water: 128 }, michele: { protein: 110, calories: 1500, water: 64 } };
+const DEFAULT_TARGETS = PROFILE_DEFAULTS[currentUser] || PROFILE_DEFAULTS.aj;
+function getTargets() {
+  const raw = localStorage.getItem('grind_targets_' + currentUser);
+  return raw ? JSON.parse(raw) : { ...DEFAULT_TARGETS };
+}
+const targets = getTargets();
 
 let summaryData = [];
 let workoutData = [];
@@ -294,12 +302,14 @@ Chart.defaults.font.size = 11;
 async function loadDashboard() {
   try {
     const [sum, wrk] = await Promise.all([
-      fetch(API + '?action=getSummaryHistory').then(r => r.json()),
-      fetch(API + '?action=getWorkoutHistory').then(r => r.json())
+      fetch(API + '?action=getSummaryHistory&user=' + currentUser).then(r => r.json()),
+      fetch(API + '?action=getWorkoutHistory&user=' + currentUser).then(r => r.json())
     ]);
     summaryData = (Array.isArray(sum) ? sum : []).sort((a, b) => a.date.localeCompare(b.date));
     workoutData = (Array.isArray(wrk) ? wrk : []).sort((a, b) => a.date.localeCompare(b.date));
 
+    document.getElementById('proteinTargetLabel').textContent = 'Target ' + targets.protein + 'g';
+    document.getElementById('calorieTargetLabel').textContent = 'Target ' + targets.calories.toLocaleString();
     buildHeroStats();
     buildProteinChart();
     buildCalorieChart();
@@ -380,7 +390,7 @@ function buildProteinChart() {
         { label: 'Protein', data: days.map(d => d.protein || 0),
           borderColor: '#3b82f6', backgroundColor: gradient(ctx, '#3b82f6'),
           borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#3b82f6', tension: 0.4, fill: true },
-        { label: 'Target', data: days.map(() => 190),
+        { label: 'Target', data: days.map(() => targets.protein),
           borderColor: 'rgba(255,255,255,0.15)', borderDash: [5,4], borderWidth: 1, pointRadius: 0, fill: false }
       ]
     },
@@ -401,7 +411,7 @@ function buildCalorieChart() {
         { label: 'Calories', data: days.map(d => d.calories || 0),
           borderColor: '#f59e0b', backgroundColor: gradient(ctx, '#f59e0b'),
           borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#f59e0b', tension: 0.4, fill: true },
-        { label: 'Target', data: days.map(() => 2300),
+        { label: 'Target', data: days.map(() => targets.calories),
           borderColor: 'rgba(255,255,255,0.15)', borderDash: [5,4], borderWidth: 1, pointRadius: 0, fill: false }
       ]
     },
@@ -609,8 +619,7 @@ function buildNutritionHeatmap() {
   const NUM_WEEKS = 13;
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
-  const stored = localStorage.getItem('grind_targets');
-  const protTarget = stored ? (JSON.parse(stored).protein || 190) : 190;
+  const protTarget = targets.protein;
 
   const nutMap = {};
   summaryData.forEach(d => {

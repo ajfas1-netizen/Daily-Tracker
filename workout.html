@@ -22,7 +22,7 @@
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       min-height: 100vh;
-      padding-bottom: 90px;
+      padding-bottom: 140px;
     }
 
     /* ---- Header ---- */
@@ -379,6 +379,21 @@
       border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #c084fc;
     }
     .act-empty { color: #555; font-size: 13px; text-align: center; padding: 16px 0; }
+
+    /* ---- Save Plan / Add Exercises ---- */
+    .save-plan-btn {
+      width: 100%; max-width: 540px; display: block; margin: 8px auto 0;
+      background: none; color: var(--accent); border: 1px solid rgba(200,255,0,0.28); border-radius: 12px;
+      padding: 11px; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 0.3px;
+    }
+    .save-plan-btn:active { background: rgba(200,255,0,0.07); }
+    .save-plan-btn.saved { color: #4ade80; border-color: rgba(74,222,128,0.28); }
+    .add-ex-btn {
+      display: block; width: 100%;
+      background: none; color: var(--dim); border: 1px solid var(--border); border-radius: 10px;
+      padding: 11px; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .add-ex-btn:active { color: var(--text); border-color: rgba(255,255,255,0.2); }
   </style>
 </head>
 <body>
@@ -477,7 +492,7 @@
 <!-- Rest Timer Bar -->
 <div class="rest-bar" id="restBar">
   <div class="rest-countdown-wrap">
-    <div class="rest-time" id="restCountdown">1:30</div>
+    <div class="rest-time" id="restCountdown">1:00</div>
     <div class="rest-label-sm">Rest</div>
   </div>
   <div class="rest-progress-wrap">
@@ -603,6 +618,7 @@ const EX_DESC = {
 };
 
 let allExercises = [];
+let fullExerciseList = [];
 let exNameMap = {};       // sanitizedId → actualName
 let exerciseState = {};   // actualName → { sets: [{weight,reps,feel}], skipped: bool }
 let exercisePRs = {};     // actualName → all-time max weight
@@ -615,10 +631,25 @@ let planMode = true;
 let selectedExNames = new Set();
 let lastDayExMap = {};   // dayName → Set of exercise names used last time
 
+// ---- Wake Lock ----
+let wakeLock = null;
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+  }
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && startTime && !wakeLock) requestWakeLock();
+});
+
 // ---- Workout Timer ----
 function startTimer() {
   startTime = Date.now();
   timerInterval = setInterval(tickTimer, 1000);
+  requestWakeLock();
 }
 function tickTimer() {
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -637,7 +668,7 @@ function getElapsedStr() {
 // ---- Rest Timer ----
 let restInterval = null;
 let restTimeLeft = 0;
-const REST_DEFAULT = 90;
+const REST_DEFAULT = 60;
 
 function startRestTimer() {
   clearInterval(restInterval);
@@ -733,6 +764,7 @@ async function loadWorkout() {
     if (data.error) { showError(data.error); return; }
 
     allExercises = data.exercises || [];
+    fullExerciseList = [...allExercises];
 
     if (allExercises.length === 0) {
       showError('No exercises found. Run setupWorkoutSheets() in Apps Script editor first, then redeploy.');
@@ -763,21 +795,45 @@ function showPlanScreen(day) {
   document.getElementById('headerDay').textContent = day + ' DAY';
 
   const dayExercises = allExercises.filter(e => e.day === day);
-  const lastUsed = lastDayExMap[day];
-  if (lastUsed && lastUsed.size > 0) {
-    // Pre-select only exercises done last time for this day
-    selectedExNames = new Set(dayExercises.filter(e => lastUsed.has(e.name)).map(e => e.name));
-    if (selectedExNames.size === 0) selectedExNames = new Set(dayExercises.map(e => e.name));
-  } else {
-    // No history for this day yet — select all as a starting point
-    selectedExNames = new Set(dayExercises.map(e => e.name));
-  }
 
-  renderPlanScreen(dayExercises);
+  let hasSavedPlan = false;
+  const savedPlanRaw = localStorage.getItem('grind_plan_' + day);
+  if (savedPlanRaw) {
+    try {
+      const savedNames = JSON.parse(savedPlanRaw);
+      const valid = savedNames.filter(n => allExercises.some(e => e.name === n));
+      if (valid.length > 0) { selectedExNames = new Set(valid); hasSavedPlan = true; }
+    } catch(e) {}
+  }
+  if (!hasSavedPlan) initDefaultSelections(dayExercises);
+
+  renderPlanScreen(dayExercises, hasSavedPlan);
 
   const wrap = document.getElementById('finishWrap');
   wrap.style.display = 'block';
-  wrap.innerHTML = '<button class="finish-btn" onclick="startFromPlan()">Begin Workout &#8594;</button>';
+  wrap.innerHTML = `
+    <button class="finish-btn" onclick="startFromPlan()">Begin Workout &#8594;</button>
+    <button class="save-plan-btn" id="savePlanBtn" onclick="savePlan()">Save Plan for Later</button>`;
+}
+
+function initDefaultSelections(dayExercises) {
+  const lastUsed = lastDayExMap[currentDay];
+  if (lastUsed && lastUsed.size > 0) {
+    selectedExNames = new Set(dayExercises.filter(e => lastUsed.has(e.name)).map(e => e.name));
+    if (selectedExNames.size === 0) selectedExNames = new Set(dayExercises.map(e => e.name));
+  } else {
+    selectedExNames = new Set(dayExercises.map(e => e.name));
+  }
+}
+
+function savePlan() {
+  localStorage.setItem('grind_plan_' + currentDay, JSON.stringify([...selectedExNames]));
+  const btn = document.getElementById('savePlanBtn');
+  if (btn) {
+    btn.textContent = 'Plan Saved ✓';
+    btn.classList.add('saved');
+    setTimeout(() => { btn.textContent = 'Save Plan for Later'; btn.classList.remove('saved'); }, 2000);
+  }
 }
 
 function makePlanCard(ex, isSelected) {
@@ -811,31 +867,35 @@ function makePlanCard(ex, isSelected) {
   </div>`;
 }
 
-function renderPlanScreen(dayExercises) {
+function renderPlanScreen(dayExercises, hasSavedPlan) {
   const container = document.getElementById('mainContent');
-  const funcExercises = allExercises.filter(e => e.day === 'FUNCTIONAL');
-  const coreExercises = allExercises.filter(e => e.day === 'CORE');
+  const funcExercises = fullExerciseList.filter(e => e.day === 'FUNCTIONAL');
+  const coreExercises = fullExerciseList.filter(e => e.day === 'CORE');
 
+  const subtitle = hasSavedPlan
+    ? 'Saved plan loaded — tap to adjust'
+    : 'Tap to deselect — or add functional & core below';
   let html = `
     <div class="plan-header">
       <div class="plan-day-label">${currentDay} DAY</div>
-      <div class="plan-subtitle">Tap to deselect — or add functional & core below</div>
+      <div class="plan-subtitle">${subtitle}</div>
     </div>`;
 
-  dayExercises.forEach(ex => { html += makePlanCard(ex, true); });
+  dayExercises.forEach(ex => { html += makePlanCard(ex, selectedExNames.has(ex.name)); });
 
-  html += '<div class="plan-count" id="planCount">' + dayExercises.length + ' of ' + dayExercises.length + ' selected</div>';
+  const selCount = dayExercises.filter(e => selectedExNames.has(e.name)).length;
+  html += '<div class="plan-count" id="planCount">' + selCount + ' of ' + dayExercises.length + ' selected</div>';
 
   html += '<div class="plan-section-divider">Add Functional</div>';
   if (funcExercises.length) {
-    funcExercises.forEach(ex => { html += makePlanCard(ex, false); });
+    funcExercises.forEach(ex => { html += makePlanCard(ex, selectedExNames.has(ex.name)); });
   } else {
     html += '<div class="plan-count" style="padding:14px 0">Run <b>syncExercises()</b> in Apps Script editor to unlock these.</div>';
   }
 
   html += '<div class="plan-section-divider">Add Core / Abs</div>';
   if (coreExercises.length) {
-    coreExercises.forEach(ex => { html += makePlanCard(ex, false); });
+    coreExercises.forEach(ex => { html += makePlanCard(ex, selectedExNames.has(ex.name)); });
   } else {
     html += '<div class="plan-count" style="padding:14px 0">Run <b>syncExercises()</b> in Apps Script editor to unlock these.</div>';
   }
@@ -862,6 +922,7 @@ function togglePlanEx(sid, name) {
 
 function startFromPlan() {
   planMode = false;
+  localStorage.removeItem('grind_plan_' + primaryDay);
   // Keep: primary day exercises that are selected + FUNCTIONAL/CORE that are explicitly selected
   allExercises = allExercises.filter(e => {
     if (e.day === primaryDay) return selectedExNames.has(e.name);
@@ -978,6 +1039,10 @@ function renderExercises(exercises) {
     </div>`;
   });
 
+  html += `
+    <div style="padding:14px 0 6px;">
+      <button class="add-ex-btn" onclick="showAddExSheet()">+ Add Exercises</button>
+    </div>`;
   container.innerHTML = html;
 }
 
@@ -991,6 +1056,11 @@ function renderSetRow(sid, idx, set, exName) {
     return `<button class="feel-btn${cls}" onclick="setFeel('${sid}',${idx},'${f}')">${f}</button>`;
   }).join('');
 
+  const isCarry = exName === "Farmer's Carries";
+  const midSep = isCarry
+    ? `<span class="set-x" style="font-size:10px;min-width:30px;text-align:center">steps</span>`
+    : `<span class="set-x">&#215;</span>`;
+
   return `
   <div class="set-row${isPR ? ' pr-set' : ''}" id="setrow_${sid}_${idx}">
     <div class="set-row-top">
@@ -999,8 +1069,8 @@ function renderSetRow(sid, idx, set, exName) {
         value="${set.weight !== '' ? set.weight : ''}"
         onchange="updateSet('${sid}',${idx},'weight',this.value)"
         onblur="updateSet('${sid}',${idx},'weight',this.value)">
-      <span class="set-x">&#215;</span>
-      <input class="set-input" type="number" inputmode="numeric" placeholder="reps"
+      ${midSep}
+      <input class="set-input" type="number" inputmode="numeric" placeholder="${isCarry ? 'steps' : 'reps'}"
         value="${set.reps !== '' ? set.reps : ''}"
         onchange="updateSet('${sid}',${idx},'reps',this.value)"
         onblur="updateSet('${sid}',${idx},'reps',this.value)">
@@ -1104,6 +1174,59 @@ function updateProgress() {
   if (pctEl) pctEl.textContent = pct + '%';
 }
 
+// ---- Add Exercises Mid-Workout ----
+function showAddExSheet() {
+  const currentNames = new Set(allExercises.map(e => e.name));
+  const available = fullExerciseList.filter(e => !currentNames.has(e.name));
+  const list = document.getElementById('addExList');
+  if (!available.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--dim);padding:20px 0;font-size:13px;">All exercises are already in your session.</div>';
+  } else {
+    const grouped = {};
+    available.forEach(e => { if (!grouped[e.day]) grouped[e.day] = []; grouped[e.day].push(e); });
+    let html = '';
+    Object.entries(grouped).forEach(([day, exs]) => {
+      html += `<div class="plan-section-divider" style="margin:12px 0 8px">${day}</div>`;
+      exs.forEach(ex => {
+        const sid = sanitizeId(ex.name);
+        const safeN = ex.name.replace(/'/g, "\\'");
+        html += `
+          <div class="plan-ex-card" id="addcard_${sid}" onclick="addExToWorkout('${safeN}')">
+            <div class="plan-ex-info">
+              <div class="plan-ex-name">${ex.name}</div>
+              ${EX_DESC[ex.name] ? `<div class="plan-ex-desc">${EX_DESC[ex.name]}</div>` : ''}
+            </div>
+            <div class="plan-ex-muscle">${ex.muscleGroup}</div>
+          </div>`;
+      });
+    });
+    list.innerHTML = html;
+  }
+  document.getElementById('addExOverlay').classList.add('open');
+}
+
+function closeAddExSheet() {
+  document.getElementById('addExOverlay').classList.remove('open');
+}
+
+function addExToWorkout(name) {
+  const ex = fullExerciseList.find(e => e.name === name);
+  if (!ex || allExercises.find(e => e.name === name)) return;
+  allExercises.push(ex);
+  exNameMap[sanitizeId(name)] = name;
+  const defaultW = (ex.lastWeight !== null && ex.lastWeight !== undefined) ? ex.lastWeight : (ex.defaultWeight || '');
+  exerciseState[name] = { skipped: false, sets: [{ weight: defaultW, reps: '', feel: '' }] };
+  const card = document.getElementById('addcard_' + sanitizeId(name));
+  if (card) card.remove();
+  if (ex.day !== currentDay) {
+    closeAddExSheet();
+    selectDay(ex.day);
+  } else {
+    renderExercises(allExercises.filter(e => e.day === currentDay));
+    closeAddExSheet();
+  }
+}
+
 // ---- Finish ----
 function confirmFinish() { document.getElementById('confirmOverlay').classList.add('open'); }
 function closeOverlay()  { document.getElementById('confirmOverlay').classList.remove('open'); }
@@ -1112,6 +1235,7 @@ async function submitWorkout() {
   closeOverlay();
   clearInterval(timerInterval);
   hideRestTimer();
+  releaseWakeLock();
   const duration = getElapsedStr();
 
   const date = new Date().toISOString().split('T')[0];
@@ -1178,8 +1302,6 @@ async function submitWorkout() {
     } catch (e) { /* best effort */ }
   }
 }
-
-function goHome() { window.location.href = 'index.html'; }
 
 // ---- Exercise Info Sheet ----
 const EX_FULL = {
@@ -1334,7 +1456,7 @@ function closeExInfo() {
   document.getElementById('exSheetOverlay').classList.remove('open');
 }
 
-function goHome() { window.location.href = 'index.html'; }
+function goHome() { releaseWakeLock(); window.location.href = 'index.html'; }
 
 // ---- Profile-aware initialization ----
 if (currentUser === 'michele') {
@@ -1345,6 +1467,17 @@ if (currentUser === 'michele') {
   loadWorkout();
 }
 </script>
+
+<!-- Add Exercises Sheet -->
+<div class="ex-sheet-overlay" id="addExOverlay" onclick="closeAddExSheet()">
+  <div class="ex-sheet" onclick="event.stopPropagation()">
+    <div class="ex-sheet-handle"></div>
+    <div style="font-size:17px;font-weight:800;margin-bottom:4px;">Add Exercises</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:16px;">Tap any exercise to add it to your session.</div>
+    <div id="addExList"></div>
+    <button class="ex-sheet-close" onclick="closeAddExSheet()">Done</button>
+  </div>
+</div>
 
 <!-- Exercise Info Sheet -->
 <div class="ex-sheet-overlay" id="exSheetOverlay" onclick="closeExInfo()">
