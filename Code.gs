@@ -47,7 +47,7 @@ function doGet(e) {
       result = getExerciseLibrary();
       break;
     case 'getWorkoutHistory':
-      result = getWorkoutHistory();
+      result = getWorkoutHistory(user);
       break;
     default:
       result = { error: 'Unknown action: ' + action };
@@ -101,7 +101,7 @@ function doPost(e) {
       result = deleteLogEntry(body, user);
       break;
     case 'logWorkoutSession':
-      result = logWorkoutSession(body);
+      result = logWorkoutSession(body, user);
       break;
     case 'setupWorkoutSheets':
       result = setupWorkoutSheets();
@@ -1137,7 +1137,8 @@ function getNextWorkout() {
 }
 
 // ---- logWorkoutSession ----
-function logWorkoutSession(body) {
+function logWorkoutSession(body, user) {
+  user = (user || 'aj').toLowerCase();
   try {
     const sessSheet = getSheet('WorkoutSessions');
     if (!sessSheet) return { error: 'WorkoutSessions sheet not found. Run setupWorkoutSheets() first.' };
@@ -1176,7 +1177,7 @@ function logWorkoutSession(body) {
       }
     }
 
-    rebuildDailySummary(date);
+    rebuildDailySummary(date, user);
     return { success: true, sessionId, setsLogged: sets.length };
   } catch (err) {
     return { error: 'logWorkoutSession error: ' + err.message };
@@ -1184,7 +1185,9 @@ function logWorkoutSession(body) {
 }
 
 // ---- getWorkoutHistory ----
-function getWorkoutHistory() {
+function getWorkoutHistory(user) {
+  user = (user || 'aj').toLowerCase();
+  if (user === 'michele') return [];  // Michele uses activity logging, not WorkoutSessions
   const sheet = getSheet('WorkoutSessions');
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
