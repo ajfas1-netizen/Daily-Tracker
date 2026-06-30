@@ -260,18 +260,33 @@
   .streak-chip.hot { border-color: rgba(251,113,133,0.4); }
   .streak-chip.hot .streak-num { color: var(--rose); }
 
-  /* ---- Daily Insight ---- */
-  .insight-card {
+  /* ---- Weight Viz Card ---- */
+  .wviz-card {
     background: var(--card); border: 1px solid var(--border);
-    border-left: 3px solid var(--coach); border-radius: 12px;
-    padding: 11px 14px; margin-bottom: 12px;
+    border-radius: 14px; overflow: hidden; margin-bottom: 12px;
+    -webkit-user-select: none; user-select: none;
   }
-  .insight-header { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
-  .insight-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--coach); }
-  .insight-refresh { margin-left: auto; background: none; border: none; color: var(--dim); font-size: 15px; cursor: pointer; padding: 0; line-height: 1; }
-  .insight-refresh:active { color: var(--coach); }
-  .insight-text { font-size: 12px; color: var(--dim); line-height: 1.6; }
-  .insight-text.loaded { color: var(--text); }
+  .wviz-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px 4px;
+  }
+  .wviz-title { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; color: var(--dim); text-transform: uppercase; }
+  .wviz-meta { font-size: 12px; font-weight: 700; color: var(--text); }
+  .wviz-track { overflow: hidden; touch-action: pan-y; }
+  .wviz-slides {
+    display: flex;
+    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: transform;
+  }
+  .wviz-slide { flex: 0 0 100%; min-width: 0; height: 150px; }
+  .wviz-slide svg { display: block; }
+  .wviz-dots { display: flex; justify-content: center; gap: 6px; padding: 7px 0 10px; }
+  .wviz-dot {
+    height: 5px; width: 5px; border-radius: 3px;
+    background: var(--border); cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .wviz-dot.active { background: var(--green); width: 18px; }
 
   /* ---- Quick Tap ---- */
   .quick-taps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -620,14 +635,26 @@
   <span class="weight-logged-badge" id="weightToday"></span>
 </div>
 
-<!-- Daily Insight -->
-<div class="insight-card" id="insightCard" style="display:none">
-  <div class="insight-header">
-    <span>⚡</span>
-    <span class="insight-label">Daily Insight</span>
-    <button class="insight-refresh" onclick="refreshInsight()" title="Refresh">&#8635;</button>
+<!-- Weight Trend Viz -->
+<div class="wviz-card" id="wvizCard" style="display:none">
+  <div class="wviz-header">
+    <span class="wviz-title">WEIGHT TREND</span>
+    <span class="wviz-meta" id="wvizMeta"></span>
   </div>
-  <div class="insight-text" id="insightText"></div>
+  <div class="wviz-track" id="wvizTrack">
+    <div class="wviz-slides" id="wvizSlides">
+      <div class="wviz-slide" id="wvizSlideA"></div>
+      <div class="wviz-slide" id="wvizSlideB"></div>
+      <div class="wviz-slide" id="wvizSlideC"></div>
+      <div class="wviz-slide" id="wvizSlideD"></div>
+    </div>
+  </div>
+  <div class="wviz-dots">
+    <span class="wviz-dot active" onclick="goToWviz(0)"></span>
+    <span class="wviz-dot" onclick="goToWviz(1)"></span>
+    <span class="wviz-dot" onclick="goToWviz(2)"></span>
+    <span class="wviz-dot" onclick="goToWviz(3)"></span>
+  </div>
 </div>
 
 <!-- Quick Log -->
@@ -802,7 +829,6 @@ async function loadAll() {
       renderStreaks(data.recentHistory);
       renderWeeklySummary(data.recentHistory);
     }
-    loadInsight();
     document.getElementById('statusBanner').className = 'status-banner';
   } catch (err) {
     showStatus('Failed to connect. Check your internet.', 'error');
@@ -863,50 +889,185 @@ function renderWeeklySummary(history) {
   document.getElementById('weeklySummaryCard').style.display = 'block';
 }
 
-// ---- Daily Insight ----
-async function loadInsight() {
-  const card = document.getElementById('insightCard');
-  const textEl = document.getElementById('insightText');
-  card.style.display = 'block';
-  textEl.textContent = 'Checking in on your data…';
-  textEl.classList.remove('loaded');
-  try {
-    const now = new Date();
-    const hour = now.getHours() + now.getMinutes() / 60;
-    // Waking day: 6am–9pm (15 hours). Clamp to 0–100%.
-    const dayPct = Math.round(Math.min(100, Math.max(0, ((hour - 6) / 15) * 100)));
-    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const insightMsg = `It is currently ${timeStr} — roughly ${dayPct}% through the day. ` +
-      `TODAY's logged numbers are partial (not end-of-day). Judge my pace, not whether I've finished. ` +
-      `If I'm on track given the time, say so. Give me ONE specific observation about today using real numbers. 2 sentences max. No generic advice.`;
-    const res = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        action: 'getCoachAdvice',
-        targets,
-        user: currentUser,
-        message: insightMsg
-      })
-    });
-    const data = await res.json();
-    const insight = (data.reply || data.message || '').trim();
-    if (insight) {
-      textEl.textContent = insight;
-      textEl.classList.add('loaded');
-    } else {
-      textEl.textContent = 'No insight available right now.';
-    }
-  } catch {
-    textEl.textContent = 'Could not load insight — check connection.';
-  }
+// ---- Weight Visualization ----
+let wvizData = [];
+let wvizSlideIdx = 0;
+const WVIZ_MIN = currentUser === 'michele' ? 120 : 220;
+const WVIZ_MAX = currentUser === 'michele' ? 155 : 250;
+
+function wvizFrac(w) {
+  return Math.max(0, Math.min(1, (w - WVIZ_MIN) / (WVIZ_MAX - WVIZ_MIN)));
 }
 
-async function refreshInsight() {
-  const textEl = document.getElementById('insightText');
-  textEl.textContent = 'Regenerating…';
-  textEl.classList.remove('loaded');
-  await loadInsight();
+function wvizSmooth(pts) {
+  if (!pts.length) return '';
+  if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i - 1], c = pts[i];
+    const dx = (c.x - p.x) * 0.38;
+    d += ` C ${p.x + dx} ${p.y} ${c.x - dx} ${c.y} ${c.x} ${c.y}`;
+  }
+  return d;
+}
+
+function wvizPoints(W, H, padT, padB, padL, padR) {
+  const n = wvizData.length;
+  const cW = W - padL - padR;
+  const cH = H - padT - padB;
+  return wvizData.map((d, i) => ({
+    x: padL + (n > 1 ? i / (n - 1) : 0.5) * cW,
+    y: padT + wvizFrac(d.weight) * cH,
+    w: d.weight
+  }));
+}
+
+function initWeightViz(history) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutStr = cutoff.toLocaleDateString('en-CA');
+  wvizData = history
+    .filter(h => h.date >= cutStr && h.weight != null && +h.weight > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (wvizData.length < 2) return;
+
+  document.getElementById('wvizCard').style.display = 'block';
+  const latest = wvizData[wvizData.length - 1].weight;
+  const first  = wvizData[0].weight;
+  const delta  = +(latest - first).toFixed(1);
+  document.getElementById('wvizMeta').textContent =
+    latest + ' lbs  ' + (delta > 0 ? '+' : '') + delta;
+
+  renderWvizA();
+  renderWvizB();
+  renderWvizC();
+  renderWvizD();
+  setupWvizSwipe();
+}
+
+function renderWvizA() {
+  const el = document.getElementById('wvizSlideA');
+  const W = 400, H = 150;
+  const pts = wvizPoints(W, H, 15, 30, 10, 10);
+  const line = wvizSmooth(pts);
+  const area = line + ` L${pts[pts.length-1].x} ${H} L${pts[0].x} ${H} Z`;
+  const latest = wvizData[wvizData.length - 1].weight;
+  const first  = wvizData[0].weight;
+  const delta  = +(latest - first).toFixed(1);
+  const color  = latest <= first ? '#22c55e' : '#ef4444';
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="wvA-fill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0.02"/>
+      </linearGradient>
+      <filter id="wvA-glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="3" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <path d="${area}" fill="url(#wvA-fill)"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="3" filter="url(#wvA-glow)" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${pts[pts.length-1].x}" cy="${pts[pts.length-1].y}" r="5" fill="${color}" filter="url(#wvA-glow)"/>
+    <text x="${W/2}" y="${H/2 + 10}" text-anchor="middle" fill="rgba(255,255,255,0.06)" font-size="54" font-weight="900" font-family="-apple-system,system-ui,sans-serif">${latest}</text>
+    <text x="${W-10}" y="${H-10}" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="9" font-weight="600" font-family="-apple-system,system-ui,sans-serif">${delta > 0 ? '+' : ''}${delta} lbs</text>
+    <text x="10" y="${H-10}" fill="rgba(255,255,255,0.15)" font-size="8" letter-spacing="0.5" font-family="-apple-system,system-ui,sans-serif">GLOW CURVE</text>
+  </svg>`;
+}
+
+function renderWvizB() {
+  const el = document.getElementById('wvizSlideB');
+  const W = 400, H = 150;
+  const pts = wvizPoints(W, H, 10, 25, 12, 12);
+  const n = pts.length;
+  const lines = pts.slice(1).map((p, i) => {
+    const op = (0.08 + (i / n) * 0.32).toFixed(2);
+    return `<line x1="${pts[i].x.toFixed(1)}" y1="${pts[i].y.toFixed(1)}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(255,255,255,${op})" stroke-width="0.8"/>`;
+  }).join('');
+  const dots = pts.map((p, i) => {
+    const t = i / (n - 1);
+    const r = 1.5 + t * 3.5;
+    const op = (0.15 + t * 0.85).toFixed(2);
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${(r+2.5).toFixed(1)}" fill="rgba(163,230,53,${(+op*0.25).toFixed(2)})"/>
+            <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r.toFixed(1)}" fill="rgba(163,230,53,${op})"/>`;
+  }).join('');
+  const latest = wvizData[wvizData.length - 1].weight;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <text x="${W/2}" y="${H/2+14}" text-anchor="middle" fill="rgba(255,255,255,0.05)" font-size="54" font-weight="900" font-family="-apple-system,system-ui,sans-serif">${latest}</text>
+    ${lines}${dots}
+    <text x="10" y="${H-10}" fill="rgba(255,255,255,0.15)" font-size="8" letter-spacing="0.5" font-family="-apple-system,system-ui,sans-serif">CONSTELLATION</text>
+  </svg>`;
+}
+
+function renderWvizC() {
+  const el = document.getElementById('wvizSlideC');
+  const W = 400, H = 150;
+  const n = wvizData.length;
+  const padL = 10, padR = 10, padT = 28, padB = 22;
+  const areaW = W - padL - padR;
+  const barW = Math.max(2, Math.floor(areaW / n) - 1);
+  const gap = n > 1 ? (areaW - n * barW) / (n - 1) : 0;
+  const barH = H - padT - padB;
+  const bars = wvizData.map((d, i) => {
+    const f = wvizFrac(d.weight);
+    const r = Math.round(34 + (239 - 34) * f);
+    const g = Math.round(197 + (68 - 197) * f);
+    const b = Math.round(94 + (68 - 94) * f);
+    const x = (padL + i * (barW + gap)).toFixed(1);
+    return `<rect x="${x}" y="${padT}" width="${barW}" height="${barH}" rx="1.5" fill="rgb(${r},${g},${b})"/>`;
+  }).join('');
+  const latest = wvizData[wvizData.length - 1].weight;
+  const delta  = +(latest - wvizData[0].weight).toFixed(1);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    ${bars}
+    <text x="${W/2}" y="18" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="9" font-weight="700" letter-spacing="1.5" font-family="-apple-system,system-ui,sans-serif">30-DAY HEAT</text>
+    <text x="${W/2}" y="${H-8}" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="9" font-weight="600" font-family="-apple-system,system-ui,sans-serif">${latest} lbs · ${delta > 0 ? '+' : ''}${delta}</text>
+    <text x="10" y="${H-8}" fill="rgba(255,255,255,0.15)" font-size="8" letter-spacing="0.5" font-family="-apple-system,system-ui,sans-serif">HEAT MAP</text>
+  </svg>`;
+}
+
+function renderWvizD() {
+  const el = document.getElementById('wvizSlideD');
+  const W = 400, H = 150;
+  const pts = wvizPoints(W, H, 10, 28, 8, 8);
+  const line = wvizSmooth(pts);
+  const area = line + ` L${pts[pts.length-1].x} ${H} L${pts[0].x} ${H} Z`;
+  const latest = wvizData[wvizData.length - 1].weight;
+  const delta  = +(latest - wvizData[0].weight).toFixed(1);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="wvD-fill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#6d28d9" stop-opacity="0.85"/>
+        <stop offset="55%" stop-color="#1d4ed8" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="#22c55e" stop-opacity="0.25"/>
+      </linearGradient>
+      <linearGradient id="wvD-stroke" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#a78bfa"/>
+        <stop offset="100%" stop-color="#22c55e"/>
+      </linearGradient>
+    </defs>
+    <path d="${area}" fill="url(#wvD-fill)"/>
+    <path d="${line}" fill="none" stroke="url(#wvD-stroke)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${pts[pts.length-1].x.toFixed(1)}" cy="${pts[pts.length-1].y.toFixed(1)}" r="4" fill="#22c55e"/>
+    <text x="${W/2}" y="${H-8}" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="10" font-weight="700" font-family="-apple-system,system-ui,sans-serif">${latest} lbs · ${delta > 0 ? '+' : ''}${delta}</text>
+    <text x="10" y="${H-8}" fill="rgba(255,255,255,0.15)" font-size="8" letter-spacing="0.5" font-family="-apple-system,system-ui,sans-serif">MOUNTAIN</text>
+  </svg>`;
+}
+
+function setupWvizSwipe() {
+  const track = document.getElementById('wvizTrack');
+  let startX = 0;
+  track.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+  track.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 40) goToWviz(dx < 0 ? Math.min(3, wvizSlideIdx + 1) : Math.max(0, wvizSlideIdx - 1));
+  }, { passive: true });
+}
+
+function goToWviz(i) {
+  wvizSlideIdx = i;
+  document.getElementById('wvizSlides').style.transform = `translateX(-${i * 100}%)`;
+  document.querySelectorAll('.wviz-dot').forEach((d, idx) => d.classList.toggle('active', idx === i));
 }
 
 // ---- Custom Water ----
@@ -1102,6 +1263,7 @@ async function loadWeightData() {
       if (history.length > 0) document.getElementById('weightInput').value = history[history.length - 1].weight;
     }
     document.getElementById('weightToday').textContent = '';
+    initWeightViz(history);
   } catch (err) { console.error('Weight load failed:', err); }
 }
 
