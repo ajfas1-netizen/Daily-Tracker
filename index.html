@@ -917,7 +917,7 @@ function wvizPoints(W, H, padT, padB, padL, padR) {
   const cH = H - padT - padB;
   return wvizData.map((d, i) => ({
     x: padL + (n > 1 ? i / (n - 1) : 0.5) * cW,
-    y: padT + wvizFrac(d.weight) * cH,
+    y: padT + (1 - wvizFrac(d.weight)) * cH,
     w: d.weight
   }));
 }
