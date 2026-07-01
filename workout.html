@@ -646,10 +646,35 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ---- Workout Timer ----
-function startTimer() {
-  startTime = Date.now();
+function startTimer(resumeFrom) {
+  startTime = resumeFrom || Date.now();
   timerInterval = setInterval(tickTimer, 1000);
   requestWakeLock();
+}
+
+// ---- Workout Draft (crash/exit recovery) ----
+function saveWorkoutDraft() {
+  if (planMode) return;
+  try {
+    localStorage.setItem('grind_workout_draft_' + currentUser, JSON.stringify({
+      date: new Date().toLocaleDateString('en-CA'),
+      primaryDay, currentDay,
+      exerciseNames: allExercises.map(e => e.name),
+      exerciseState, startTime
+    }));
+  } catch(e) {}
+}
+
+function clearWorkoutDraft() {
+  localStorage.removeItem('grind_workout_draft_' + currentUser);
+}
+
+function showResumeBanner() {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#22c55e;color:#000;font-size:12px;font-weight:800;padding:8px 18px;border-radius:20px;z-index:999;letter-spacing:0.5px;pointer-events:none;';
+  b.textContent = '✓ Workout restored';
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 2800);
 }
 function tickTimer() {
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -783,6 +808,33 @@ async function loadWorkout() {
 
     primaryDay = data.nextDay || 'CHEST';
     currentDay = primaryDay;
+
+    // Restore in-progress workout if one exists from today
+    const draftRaw = localStorage.getItem('grind_workout_draft_' + currentUser);
+    if (draftRaw) {
+      try {
+        const draft = JSON.parse(draftRaw);
+        const todayStr = new Date().toLocaleDateString('en-CA');
+        if (draft.date === todayStr && Array.isArray(draft.exerciseNames) && draft.exerciseState) {
+          primaryDay = draft.primaryDay;
+          currentDay = draft.currentDay;
+          allExercises = draft.exerciseNames.map(n => fullExerciseList.find(e => e.name === n)).filter(Boolean);
+          exNameMap = {};
+          allExercises.forEach(ex => { exNameMap[sanitizeId(ex.name)] = ex.name; });
+          exerciseState = draft.exerciseState;
+          planMode = false;
+          document.getElementById('dayTabs').style.display = 'flex';
+          document.getElementById('finishWrap').innerHTML = '<button class="finish-btn" onclick="confirmFinish()">Finish Workout</button>';
+          document.getElementById('finishWrap').style.display = 'block';
+          selectDay(currentDay);
+          startTimer(draft.startTime);
+          showResumeBanner();
+          return;
+        }
+      } catch(e) {}
+      clearWorkoutDraft();
+    }
+
     showPlanScreen(primaryDay);
   } catch (err) {
     showError('Could not load workout. Check your connection and try again.');
@@ -938,6 +990,7 @@ function startFromPlan() {
   selectDay(currentDay);
   document.getElementById('finishWrap').style.display = 'block';
   startTimer();
+  saveWorkoutDraft();
 }
 
 function showError(msg) {
@@ -1102,6 +1155,7 @@ function updateSet(sid, idx, field, value) {
   }
 
   updateProgress();
+  saveWorkoutDraft();
 }
 
 function setFeel(sid, idx, feel) {
@@ -1114,6 +1168,7 @@ function setFeel(sid, idx, feel) {
     setsContainer.innerHTML = sets.map((s, i) => renderSetRow(sid, i, s, exName)).join('');
   }
   updateProgress();
+  saveWorkoutDraft();
 }
 
 function addSet(sid) {
@@ -1124,6 +1179,7 @@ function addSet(sid) {
   sets.push({ weight: last ? last.weight : '', reps: '', feel: '' });
   const container = document.getElementById('sets_' + sid);
   if (container) container.innerHTML = sets.map((s, i) => renderSetRow(sid, i, s, exName)).join('');
+  saveWorkoutDraft();
   startRestTimer();
 }
 
@@ -1136,6 +1192,7 @@ function removeSet(sid, idx) {
   const container = document.getElementById('sets_' + sid);
   if (container) container.innerHTML = sets.map((s, i) => renderSetRow(sid, i, s, exName)).join('');
   updateProgress();
+  saveWorkoutDraft();
 }
 
 function toggleSkip(sid) {
@@ -1148,6 +1205,7 @@ function toggleSkip(sid) {
   if (card) card.classList.toggle('skipped', skipped);
   if (btn) { btn.textContent = skipped ? 'Undo' : 'Skip'; btn.classList.toggle('active', skipped); }
   updateProgress();
+  saveWorkoutDraft();
 }
 
 // ---- Progress ----
@@ -1225,6 +1283,7 @@ function addExToWorkout(name) {
     renderExercises(allExercises.filter(e => e.day === currentDay));
     closeAddExSheet();
   }
+  saveWorkoutDraft();
 }
 
 // ---- Finish ----
@@ -1291,6 +1350,8 @@ async function submitWorkout() {
   document.getElementById('successExercises').textContent = exercisesDone;
   document.getElementById('successVolume').textContent = totalVolume.toLocaleString();
   document.getElementById('successScreen').classList.add('visible');
+
+  clearWorkoutDraft();
 
   if (sets.length > 0) {
     try {
