@@ -435,6 +435,10 @@ function goHome() { window.location.href = 'index.html'; }
 let html5QrCode = null;
 
 function openScanner() {
+  if (typeof Html5Qrcode === 'undefined') {
+    alert('Scanner library failed to load. Check your internet connection and reload the page.');
+    return;
+  }
   document.getElementById('scannerOverlay').classList.add('open');
   document.getElementById('scanStatus').textContent = 'Starting camera…';
   html5QrCode = new Html5Qrcode('qrReader');
@@ -452,31 +456,45 @@ function openScanner() {
 
 async function onBarcodeScanned(barcode) {
   try { await html5QrCode.stop(); } catch {}
-  document.getElementById('scanStatus').textContent = 'Found ' + barcode + ' — looking up…';
+  const statusEl = document.getElementById('scanStatus');
+  statusEl.textContent = 'Found ' + barcode + ' — looking up…';
   try {
-    const res = await fetch('https://world.openfoodfacts.org/api/v0/product/' + barcode + '.json');
+    const res = await fetch(
+      'https://world.openfoodfacts.org/api/v2/product/' + barcode +
+      '?fields=product_name,brands,serving_size,nutriments',
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) {
+      statusEl.textContent = 'Lookup failed (HTTP ' + res.status + '). Try again.';
+      setTimeout(closeScanner, 2500);
+      return;
+    }
     const data = await res.json();
     if (data.status !== 1 || !data.product) {
-      document.getElementById('scanStatus').textContent = 'Product not found. Add it manually.';
-      setTimeout(closeScanner, 2000);
+      statusEl.textContent = 'Product not in database. Enter manually.';
+      setTimeout(closeScanner, 2500);
       return;
     }
     const p = data.product;
     const n = p.nutriments || {};
-    document.getElementById('newFoodName').value    = p.product_name || p.brands || '';
+    // Prefer per-serving values; fall back to per-100g if serving data absent
+    const num = (serving, per100) => Math.round(n[serving] ?? n[per100] ?? 0);
+    document.getElementById('newFoodName').value     = p.product_name || p.brands || '';
     document.getElementById('newServingLabel').value = p.serving_size || '1 serving';
-    document.getElementById('newProtein').value     = Math.round(n.proteins_serving || 0);
-    document.getElementById('newCalories').value    = Math.round(n['energy-kcal_serving'] || 0);
-    document.getElementById('newCarbs').value       = Math.round(n.carbohydrates_serving || 0);
-    document.getElementById('newFat').value         = Math.round(n.fat_serving || 0);
-    document.getElementById('newSugar').value       = Math.round(n.sugars_serving || 0);
-    document.getElementById('newSodium').value      = Math.round((n.sodium_serving || 0) * 1000);
+    document.getElementById('newProtein').value      = num('proteins_serving', 'proteins_100g');
+    document.getElementById('newCalories').value     = num('energy-kcal_serving', 'energy-kcal_100g');
+    document.getElementById('newCarbs').value        = num('carbohydrates_serving', 'carbohydrates_100g');
+    document.getElementById('newFat').value          = num('fat_serving', 'fat_100g');
+    document.getElementById('newSugar').value        = num('sugars_serving', 'sugars_100g');
+    document.getElementById('newSodium').value       = Math.round((n['sodium_serving'] ?? n['sodium_100g'] ?? 0) * 1000);
     closeScanner();
     document.getElementById('addFoodForm').classList.add('open');
     showToast('Product found! Review and save.');
-  } catch {
-    document.getElementById('scanStatus').textContent = 'Lookup failed. Check connection.';
-    setTimeout(closeScanner, 2000);
+  } catch (err) {
+    statusEl.textContent = err.name === 'TimeoutError'
+      ? 'Lookup timed out. Check connection.'
+      : 'Lookup failed: ' + (err.message || 'unknown error');
+    setTimeout(closeScanner, 2500);
   }
 }
 
