@@ -199,7 +199,7 @@
     <button class="back-btn" onclick="goHome()">&#8592;</button>
     <div>
       <div class="header-title">THE GRIND</div>
-      <div class="header-sub">FOOD LOG</div>
+      <div class="header-sub" id="headerSub">FOOD LOG</div>
     </div>
   </div>
 </div>
@@ -285,6 +285,22 @@ function getTargets() {
 }
 const targets = getTargets();
 
+// Optional ?date=YYYY-MM-DD passed from the home screen when logging a past day.
+// Only past dates are honored; anything else falls back to today (empty = today).
+const viewDate = (function() {
+  const p = new URLSearchParams(location.search).get('date');
+  if (!p || !/^\d{4}-\d{2}-\d{2}$/.test(p)) return '';
+  return p < new Date().toLocaleDateString('en-CA') ? p : '';
+})();
+function viewDateLabel() {
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  if (viewDate === y.toLocaleDateString('en-CA')) return 'Yesterday';
+  return new Date(viewDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+function daySummaryAction() {
+  return 'getDaySummary' + (viewDate ? '&date=' + viewDate : '');
+}
+
 let foodsCache = [];
 let isBatchMode = false;
 
@@ -296,7 +312,7 @@ async function apiPost(body) {
   const res = await fetch(API, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ ...body, user: currentUser })
+    body: JSON.stringify({ ...body, user: currentUser, ...(viewDate ? { date: viewDate } : {}) })
   });
   return res.json();
 }
@@ -311,7 +327,7 @@ async function loadAll() {
   try {
     const [foods, summary] = await Promise.all([
       apiGet('getFoods'),
-      apiGet('getDaySummary')
+      apiGet(daySummaryAction())
     ]);
     foodsCache = foods;
     renderMacroBar(summary.totals);
@@ -377,7 +393,7 @@ async function logFood(foodId) {
     document.getElementById('srv-' + foodId).textContent = '1';
     showToast('Logged ' + food.name + (servings > 1 ? ' ×' + servings : ''));
     // Refresh macro bar
-    const summary = await apiGet('getDaySummary');
+    const summary = await apiGet(daySummaryAction());
     renderMacroBar(summary.totals);
   } catch (err) {
     showToast('Failed to log');
@@ -429,7 +445,7 @@ async function saveNewFood() {
   }
 }
 
-function goHome() { window.location.href = 'index.html'; }
+function goHome() { window.location.href = 'index.html' + (viewDate ? '?date=' + viewDate : ''); }
 
 // ---- Barcode Scanner ----
 let html5QrCode = null;
@@ -506,6 +522,11 @@ function closeScanner() {
   document.getElementById('scannerOverlay').classList.remove('open');
 }
 
+if (viewDate) {
+  const sub = document.getElementById('headerSub');
+  sub.textContent = 'LOGGING · ' + viewDateLabel().toUpperCase();
+  sub.style.color = 'var(--orange)';
+}
 loadAll();
 </script>
 </body>

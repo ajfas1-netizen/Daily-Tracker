@@ -9,6 +9,23 @@ function getSheet(tabName) {
 function getSheetSuffix(user) { return user === 'michele' ? 'Michele' : ''; }
 function getSheetName(base, user) { return base + getSheetSuffix(user); }
 
+// ---- Date helpers ----
+// Resolve the effective (date, timestamp) for a log write. When rawDate is a valid
+// yyyy-MM-dd on or before today, backdate the entry to it; the timestamp is stamped at
+// the current time-of-day on that date so same-session backfills stay ordered and the
+// log's time labels don't contradict the day being viewed. Future or malformed dates
+// fall back to "now" so a bad param can never push data into the future.
+function resolveLogDate(rawDate) {
+  const now = new Date();
+  const today = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+  if (rawDate && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && rawDate <= today) {
+    const timeOfDay = Utilities.formatDate(now, TZ, 'HH:mm:ss');
+    const stamped = Utilities.parseDate(rawDate + ' ' + timeOfDay, TZ, 'yyyy-MM-dd HH:mm:ss');
+    return { date: rawDate, timestamp: stamped.toISOString() };
+  }
+  return { date: today, timestamp: now.toISOString() };
+}
+
 // ---- API Entry Points ----
 function doGet(e) {
   const action = e.parameter.action;
@@ -197,9 +214,7 @@ function logFood(body, user) {
   if (!food) return { error: 'Food not found: ' + body.foodId };
 
   const servings = body.servings || 1;
-  const now = new Date();
-  const timestamp = now.toISOString();
-  const date = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+  const { date, timestamp } = resolveLogDate(body.date);
 
   const protein = food.protein * servings;
   const calories = food.calories * servings;
@@ -228,9 +243,7 @@ function logLiquid(body, user) {
   user = (user || 'aj').toLowerCase();
   const type   = body.type; // water, coffee, coors, bourbon, mimosa, redwine, surfside, titos, martini
   const amount = body.amount || 1;
-  const now    = new Date();
-  const timestamp = now.toISOString();
-  const date   = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+  const { date, timestamp } = resolveLogDate(body.date);
 
   let item, protein = 0, calories = 0, carbs = 0, fat = 0, sugar = 0, sodium = 0;
 
@@ -558,7 +571,7 @@ function logBodyweight(body, user) {
   const weight = parseFloat(body.weight);
   if (!weight || weight < 50 || weight > 500) return { error: 'Invalid weight' };
 
-  const date         = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const { date }     = resolveLogDate(body.date);
   const summarySheet = getSheet(getSheetName('DailySummary', user));
   const data         = summarySheet.getDataRange().getValues();
   let foundRow = -1;
@@ -770,9 +783,7 @@ function callClaude(text, mode, portions) {
 // Writes a food entry directly to Log without requiring a Foods library entry.
 function logFoodDirect(body, user) {
   user = (user || 'aj').toLowerCase();
-  const now = new Date();
-  const timestamp = now.toISOString();
-  const date = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+  const { date, timestamp } = resolveLogDate(body.date);
 
   const protein  = parseFloat(body.protein)  || 0;
   const calories = parseFloat(body.calories) || 0;

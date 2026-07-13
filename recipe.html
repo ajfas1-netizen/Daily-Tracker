@@ -386,8 +386,8 @@
 <body>
 
 <div class="header">
-  <a href="index.html" class="back-btn">&#8592; THE GRIND</a>
-  <div class="header-title">THE FORGE</div>
+  <a href="index.html" class="back-btn" id="backLink">&#8592; THE GRIND</a>
+  <div class="header-title">THE FORGE<span id="forgeDaytag" style="display:none;color:#f59e0b;font-size:12px;font-weight:700;margin-left:8px;letter-spacing:0.5px;"></span></div>
 </div>
 
 <!-- Mode Tabs -->
@@ -546,7 +546,7 @@
   <div class="success-icon">&#10003;</div>
   <div class="success-title" id="success-title">Done!</div>
   <div class="success-sub" id="success-sub"></div>
-  <a href="index.html" class="btn-back">Back to The Grind</a>
+  <a href="index.html" class="btn-back" id="backLinkSuccess">Back to The Grind</a>
   <br>
   <button class="btn-secondary" onclick="resetBuilder()" style="width:100%;margin-top:10px">Build Another</button>
 </div>
@@ -560,6 +560,19 @@ let currentMode = 'cook';
 let portions = 4;
 let pendingResult = null;
 let forgeScanner = null;
+
+// Optional ?date=YYYY-MM-DD from the home screen when logging into a past day.
+// Only past dates are honored (empty = today).
+const viewDate = (function() {
+  const p = new URLSearchParams(location.search).get('date');
+  if (!p || !/^\d{4}-\d{2}-\d{2}$/.test(p)) return '';
+  return p < new Date().toLocaleDateString('en-CA') ? p : '';
+})();
+function viewDateLabel() {
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  if (viewDate === y.toLocaleDateString('en-CA')) return 'Yesterday';
+  return new Date(viewDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
 
 function setMode(mode) {
   currentMode = mode;
@@ -845,12 +858,13 @@ async function logToday(macros, showCard) {
       carbs: macros.carbs,
       fat: macros.fat,
       sugar: macros.sugar,
-      sodium: macros.sodium
+      sodium: macros.sodium,
+      ...(viewDate ? { date: viewDate } : {})
     })
   });
   const data = await resp.json();
   if (data.error) { if (showCard) showToast(data.error, 'error'); throw new Error(data.error); }
-  if (showCard) showSuccess('Logged Today', macros.name + ' logged for today.');
+  if (showCard) showSuccess('Logged', macros.name + ' logged for ' + (viewDate ? viewDateLabel() : 'today') + '.');
 }
 
 function showSuccess(title, sub) {
@@ -880,6 +894,16 @@ function showToast(msg, type) {
   el.className = 'status-toast show' + (type ? ' ' + type : '');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// When logging a past day, surface it in the header and keep the day on back-navigation.
+if (viewDate) {
+  const q = '?date=' + viewDate;
+  document.getElementById('backLink').setAttribute('href', 'index.html' + q);
+  document.getElementById('backLinkSuccess').setAttribute('href', 'index.html' + q);
+  const tag = document.getElementById('forgeDaytag');
+  tag.textContent = '· ' + viewDateLabel();
+  tag.style.display = 'inline';
 }
 </script>
 </body>

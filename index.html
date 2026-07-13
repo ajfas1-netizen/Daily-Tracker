@@ -100,7 +100,15 @@
   .day-nav-btn:disabled { opacity: 0.2; }
   .day-nav-center { text-align: center; }
   .day-nav-date { font-size: 13px; font-weight: 700; }
+  .day-nav-date.past { color: var(--orange); }
   .day-nav-sub { font-size: 10px; color: var(--dim); }
+  .backfill-banner {
+    display: none; align-items: center; justify-content: center; gap: 6px;
+    margin-bottom: 9px; padding: 7px 12px; border-radius: 10px;
+    background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.35);
+    color: var(--orange); font-size: 12px; font-weight: 700; letter-spacing: 0.2px;
+  }
+  .backfill-banner.show { display: flex; }
 
   /* ---- Hero Stats Card ---- */
   .hero-card {
@@ -483,6 +491,9 @@
   </div>
   <button class="day-nav-btn" id="nextDay" onclick="changeDay(1)" disabled>&#8250;</button>
 </div>
+
+<!-- Backfill cue: shown only when logging into a past day -->
+<div class="backfill-banner" id="backfillBanner">&#9998; <span id="backfillLabel"></span></div>
 
 <!-- Hero Stats Card -->
 <div class="hero-card" id="totalsCard">
@@ -1084,7 +1095,7 @@ async function logCustomWater() {
   if (!oz || oz < 1 || oz > 200) { alert('Enter a valid amount (1–200 oz).'); return; }
   closeCustomWater();
   try {
-    await apiPost({ action: 'logLiquid', type: 'water', amount: oz });
+    await apiPost({ action: 'logLiquid', type: 'water', amount: oz, ...activeLogDate() });
     await refreshTotalsAndLog();
     showStatus(oz + ' oz water logged', 'success');
   } catch { showStatus('Failed to log water', 'error'); }
@@ -1162,7 +1173,7 @@ async function tapLiquid(type, btn, amount) {
   btn.classList.add('flash');
   btn.disabled = true;
   try {
-    await apiPost({ action: 'logLiquid', type, amount: amount || 1 });
+    await apiPost({ action: 'logLiquid', type, amount: amount || 1, ...activeLogDate() });
     await refreshTotalsAndLog();
   } catch (err) {
     showStatus('Failed to log ' + type, 'error');
@@ -1236,7 +1247,7 @@ async function saveWeight() {
   const btn = document.getElementById('weightSaveBtn');
   btn.disabled = true; btn.textContent = '...';
   try {
-    const result = await apiPost({ action: 'logBodyweight', weight });
+    const result = await apiPost({ action: 'logBodyweight', weight, ...activeLogDate() });
     if (result.success) {
       document.getElementById('weightToday').textContent = weight + ' lbs saved';
       setTimeout(() => { document.getElementById('weightToday').textContent = ''; }, 2500);
@@ -1268,12 +1279,14 @@ async function loadWeightData() {
 }
 
 // ---- Navigation ----
-function openFood()          { window.location.href = 'food.html'; }
+// Carry the viewed day to pages that log food, so the whole flow stays on one date.
+function dayParam()          { return viewOffset !== 0 ? '?date=' + getViewDateStr() : ''; }
+function openFood()          { window.location.href = 'food.html' + dayParam(); }
 function openWorkout()       { window.location.href = 'workout.html'; }
 function openLog()           { window.location.href = 'log.html'; }
 function openCoach()         { window.location.href = 'coach.html'; }
 function openDashboard()     { window.location.href = 'dashboard.html'; }
-function openRecipeBuilder() { window.location.href = 'recipe.html'; }
+function openRecipeBuilder() { window.location.href = 'recipe.html' + dayParam(); }
 
 // ---- Hard Refresh ----
 function hardRefresh() {
@@ -1287,17 +1300,27 @@ function getViewDateStr() {
   const d = new Date(); d.setDate(d.getDate() + viewOffset);
   return d.toLocaleDateString('en-CA');
 }
-function updateDayNav() {
+function dayLabel() {
   const d = new Date(); d.setDate(d.getDate() + viewOffset);
-  if (viewOffset === 0) {
-    document.getElementById('dayNavDate').textContent = 'Today';
-  } else if (viewOffset === -1) {
-    document.getElementById('dayNavDate').textContent = 'Yesterday';
-  } else {
-    document.getElementById('dayNavDate').textContent = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  }
+  if (viewOffset === 0)  return 'Today';
+  if (viewOffset === -1) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+// Any log write picks up the viewed day when it isn't today, so past-day
+// entries land on the right date. Today logs stay date-less (server defaults to now).
+function activeLogDate() {
+  return viewOffset !== 0 ? { date: getViewDateStr() } : {};
+}
+function updateDayNav() {
+  const label   = dayLabel();
+  const dateEl  = document.getElementById('dayNavDate');
+  const isPast  = viewOffset !== 0;
+  dateEl.textContent = label;
+  dateEl.classList.toggle('past', isPast);
   document.getElementById('dayNavSub').textContent = getViewDateStr();
   document.getElementById('nextDay').disabled = (viewOffset >= 0);
+  document.getElementById('backfillLabel').textContent = 'Logging to ' + label;
+  document.getElementById('backfillBanner').classList.toggle('show', isPast);
 }
 async function changeDay(delta) {
   viewOffset += delta;
@@ -1329,8 +1352,18 @@ async function changeDay(delta) {
 })();
 
 // ---- Init ----
+// Honor a ?date=YYYY-MM-DD param (e.g. returning from the food page on a past day)
+// so the selected day survives navigation between pages.
+(function initViewDate() {
+  const p = new URLSearchParams(location.search).get('date');
+  if (!p || !/^\d{4}-\d{2}-\d{2}$/.test(p)) return;
+  const today  = new Date(); today.setHours(0, 0, 0, 0);
+  const target = new Date(p + 'T00:00:00');
+  const off    = Math.round((target - today) / 86400000);
+  if (off < 0) viewOffset = off;
+})();
 updateDayNav();
-loadAll();
+loadAll().then(() => { if (viewOffset !== 0) changeDay(0); });
 </script>
 </body>
 </html>
