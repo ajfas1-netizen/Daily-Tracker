@@ -522,8 +522,10 @@
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
 const currentUser = (localStorage.getItem('grind_user') || 'aj').toLowerCase();
+const USER_SCHEMA = { aj: 'aj', nick: 'aj', michele: 'michele', ady: 'michele' };
+const currentSchema = USER_SCHEMA[currentUser] || 'aj';
 
-// ---- Michele Activity Logging ----
+// ---- Activity Logging (Michele-schema users: Michele, Ady) ----
 async function logActivity(activityType) {
   const idMap = {
     'Club Pilates L1': 'actBtn_pilates1',
@@ -537,7 +539,7 @@ async function logActivity(activityType) {
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'logActivity', activityType, user: 'michele' })
+      body: JSON.stringify({ action: 'logActivity', activityType, user: currentUser })
     });
     const data = await res.json();
     if (data.success) {
@@ -555,7 +557,7 @@ async function logActivity(activityType) {
 async function loadMicheleActivities() {
   try {
     const today = new Date().toLocaleDateString('en-CA');
-    const res   = await fetch(API + '?action=getHomeData&user=michele');
+    const res   = await fetch(API + '?action=getHomeData&user=' + currentUser);
     const data  = await res.json();
     const acts  = data.todayActivities || [];
     const list  = document.getElementById('actLoggedList');
@@ -781,8 +783,8 @@ function buildLastSessionMap(history) {
 async function loadWorkout() {
   try {
     const [workoutRes, histRes] = await Promise.all([
-      fetch(API + '?action=getNextWorkout').then(r => r.json()),
-      fetch(API + '?action=getWorkoutHistory').then(r => r.json()).catch(() => [])
+      fetch(API + '?action=getNextWorkout&user=' + currentUser).then(r => r.json()),
+      fetch(API + '?action=getWorkoutHistory&user=' + currentUser).then(r => r.json()).catch(() => [])
     ]);
     const data = workoutRes;
 
@@ -1358,7 +1360,7 @@ async function submitWorkout() {
       await fetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'logWorkoutSession', sessionId, date, dayName: primaryDay, sets })
+        body: JSON.stringify({ action: 'logWorkoutSession', sessionId, date, dayName: primaryDay, sets, user: currentUser })
       });
     } catch (e) { /* best effort */ }
   }
@@ -1520,7 +1522,9 @@ function closeExInfo() {
 function goHome() { releaseWakeLock(); window.location.href = 'index.html'; }
 
 // ---- Profile-aware initialization ----
-if (currentUser === 'michele') {
+// Michele-schema users (Michele, Ady) get the simple activity screen; AJ-schema
+// users (AJ, Nick) get the structured gym UI driven by the shared program.
+if (currentSchema === 'michele') {
   document.getElementById('micheleActivity').style.display = 'block';
   document.getElementById('ajGym').style.display = 'none';
   loadMicheleActivities();

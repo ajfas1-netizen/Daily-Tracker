@@ -188,7 +188,7 @@
 const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
 const currentUser = (localStorage.getItem('grind_user') || 'aj').toLowerCase();
 
-const PROFILE_DEFAULTS = { aj: { protein: 190, calories: 2300, water: 128 }, michele: { protein: 110, calories: 1500, water: 64 } };
+const PROFILE_DEFAULTS = { aj: { protein: 190, calories: 2300, water: 128 }, nick: { protein: 190, calories: 2300, water: 128 }, michele: { protein: 110, calories: 1500, water: 64 }, ady: { protein: 110, calories: 1500, water: 64 } };
 const DEFAULT_TARGETS = PROFILE_DEFAULTS[currentUser] || PROFILE_DEFAULTS.aj;
 function getTargets() {
   const raw = localStorage.getItem('grind_targets_' + currentUser);

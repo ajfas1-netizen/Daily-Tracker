@@ -6,7 +6,25 @@ function getSheet(tabName) {
   return SpreadsheetApp.openById(SHEET_ID).getSheetByName(tabName);
 }
 
-function getSheetSuffix(user) { return user === 'michele' ? 'Michele' : ''; }
+// ---- Multi-user config ----
+// Each tracked person maps to a data "schema" that controls their DailySummary
+// column layout, drink set, workout model, and coach tone. New people reuse an
+// existing schema so no new column layouts are invented: Nick uses AJ's schema
+// (beer/bourbon + structured lifting), Ady uses Michele's (wine/cocktails + activity).
+const USER_SCHEMA = { aj: 'aj', nick: 'aj', michele: 'michele', ady: 'michele' };
+function userSchema(user) { return USER_SCHEMA[(user || 'aj').toLowerCase()] || 'aj'; }
+function isMicheleSchema(user) { return userSchema(user) === 'michele'; }
+function displayName(user) {
+  const u = (user || 'aj').toLowerCase();
+  return u === 'aj' ? 'AJ' : u.charAt(0).toUpperCase() + u.slice(1);
+}
+
+// AJ keeps the original unsuffixed tabs; everyone else gets name-suffixed tabs
+// (LogNick, DailySummaryAdy, WorkoutsMichele, …) so their data never mixes.
+function getSheetSuffix(user) {
+  const u = (user || 'aj').toLowerCase();
+  return u === 'aj' ? '' : u.charAt(0).toUpperCase() + u.slice(1);
+}
 function getSheetName(base, user) { return base + getSheetSuffix(user); }
 
 // ---- Date helpers ----
@@ -58,7 +76,7 @@ function doGet(e) {
       result = getHomeData(e.parameter.date, user);
       break;
     case 'getNextWorkout':
-      result = getNextWorkout();
+      result = getNextWorkout(user);
       break;
     case 'getExerciseLibrary':
       result = getExerciseLibrary();
@@ -127,7 +145,7 @@ function doPost(e) {
       result = syncExercises();
       break;
     case 'logActivity':
-      result = logActivity(body);
+      result = logActivity(body, user);
       break;
     case 'setupMicheleSheets':
       result = setupMicheleSheets();
@@ -253,7 +271,7 @@ function logLiquid(body, user) {
       break;
     case 'coffee':
       item = 'Coffee w/ Oat Milk & Syrup';
-      if (user === 'michele') {
+      if (isMicheleSchema(user)) {
         calories = 43; carbs = 9; fat = 1; sugar = 7;
       } else {
         calories = 75; carbs = 17; fat = 1; sugar = 15;
@@ -408,8 +426,7 @@ function rebuildDailySummary(date, user) {
     if (type === 'martini')  martiniCount += 1;
   }
 
-  const workoutSheetName = user === 'michele' ? 'WorkoutsMichele' : 'Workouts';
-  const workoutSheet = getSheet(workoutSheetName);
+  const workoutSheet = getSheet(getSheetName('Workouts', user));
   let workoutDone = 'No';
   if (workoutSheet) {
     const workoutData = workoutSheet.getDataRange().getValues();
@@ -429,7 +446,7 @@ function rebuildDailySummary(date, user) {
     if (rowDate === date) { foundRow = i + 1; break; }
   }
 
-  if (user === 'michele') {
+  if (isMicheleSchema(user)) {
     // [date, protein, calories, waterOz, coffeeCount, redwineCount, surfsideCount, titosCount, martiniCount, workoutDone, bodyweight]
     const rowData = [date, protein, calories, waterOz, coffeeCount, redwineCount, surfsideCount, titosCount, martiniCount, workoutDone, ''];
     if (foundRow > 0) {
@@ -462,7 +479,7 @@ function getDaySummary(dateParam, user) {
   const summarySheet = getSheet(getSheetName('DailySummary', user));
   const summaryData  = summarySheet.getDataRange().getValues();
   totals.workoutDone = 'No';
-  const wdCol = user === 'michele' ? 9 : 7;
+  const wdCol = isMicheleSchema(user) ? 9 : 7;
   for (let i = 1; i < summaryData.length; i++) {
     const rowDate = summaryData[i][0] instanceof Date
       ? Utilities.formatDate(summaryData[i][0], TZ, 'yyyy-MM-dd')
@@ -514,8 +531,7 @@ function getYesterday(user) {
     if (type === 'food')     foodItems.push(row[3]);
   }
 
-  const workoutSheetName = user === 'michele' ? 'WorkoutsMichele' : 'Workouts';
-  const workoutSheet = getSheet(workoutSheetName);
+  const workoutSheet = getSheet(getSheetName('Workouts', user));
   let workedOut = false, workoutSummary = [];
   if (workoutSheet) {
     const workoutData = workoutSheet.getDataRange().getValues();
@@ -524,7 +540,7 @@ function getYesterday(user) {
         ? Utilities.formatDate(workoutData[i][0], TZ, 'yyyy-MM-dd') : workoutData[i][0];
       if (rowDate === date) {
         workedOut = true;
-        workoutSummary.push(user === 'michele' ? workoutData[i][2] : workoutData[i][1] + ': ' + workoutData[i][2]);
+        workoutSummary.push(isMicheleSchema(user) ? workoutData[i][2] : workoutData[i][1] + ': ' + workoutData[i][2]);
       }
     }
   }
@@ -582,12 +598,12 @@ function logBodyweight(body, user) {
     if (rowDate === date) { foundRow = i + 1; break; }
   }
 
-  // Michele bodyweight = col 11 (1-indexed), AJ = col 9
-  const bwCol = user === 'michele' ? 11 : 9;
+  // Michele-schema bodyweight = col 11 (1-indexed), AJ-schema = col 9
+  const bwCol = isMicheleSchema(user) ? 11 : 9;
   if (foundRow > 0) {
     summarySheet.getRange(foundRow, bwCol).setValue(weight);
   } else {
-    if (user === 'michele') {
+    if (isMicheleSchema(user)) {
       summarySheet.appendRow([date, 0, 0, 0, 0, 0, 0, 0, 0, 'No', weight]);
     } else {
       summarySheet.appendRow([date, 0, 0, 0, 0, 0, 0, 'No', weight, 0]);
@@ -602,7 +618,7 @@ function getWeightHistory(user) {
   user = (user || 'aj').toLowerCase();
   const summarySheet = getSheet(getSheetName('DailySummary', user));
   const data         = summarySheet.getDataRange().getValues();
-  const bwColIdx     = user === 'michele' ? 10 : 8; // 0-indexed
+  const bwColIdx     = isMicheleSchema(user) ? 10 : 8; // 0-indexed
   const history      = [];
 
   for (let i = 1; i < data.length; i++) {
@@ -804,22 +820,22 @@ function logFoodDirect(body, user) {
   };
 }
 
-// ---- Michele Activity Logging ----
-function logActivity(body) {
+// ---- Activity Logging (Michele-schema users: Michele, Ady) ----
+function logActivity(body, user) {
+  user = (user || body.user || 'michele').toLowerCase();
   const activityType = body.activityType || 'Activity';
-  const date         = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
-  const timestamp    = new Date().toISOString();
+  const { date, timestamp } = resolveLogDate(body.date);
 
-  const sheet = getSheet('WorkoutsMichele');
-  if (!sheet) return { error: 'WorkoutsMichele not found. Run setupMicheleSheets() first.' };
+  const sheet = getSheet(getSheetName('Workouts', user));
+  if (!sheet) return { error: 'Activity sheet not found for ' + displayName(user) + '. Run their setup first.' };
   sheet.appendRow([date, timestamp, activityType, '', '']);
 
-  rebuildDailySummary(date, 'michele');
+  rebuildDailySummary(date, user);
   return { success: true, activityType };
 }
 
-function getMicheleActivityToday(date) {
-  const sheet = getSheet('WorkoutsMichele');
+function getMicheleActivityToday(date, user) {
+  const sheet = getSheet(getSheetName('Workouts', user));
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
   return data.slice(1).filter(r => {
@@ -828,8 +844,8 @@ function getMicheleActivityToday(date) {
   }).map(r => ({ date: r[0], activityType: r[2] }));
 }
 
-function getMicheleRecentActivities() {
-  const sheet = getSheet('WorkoutsMichele');
+function getMicheleRecentActivities(user) {
+  const sheet = getSheet(getSheetName('Workouts', user));
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
   return data.slice(1).filter(r => r[0] && r[2]).map(r => ({
@@ -859,6 +875,47 @@ function setupMicheleSheets() {
   return { success: true, message: 'Michele\'s sheets created. She\'s ready to go!' };
 }
 
+// ---- setupUserSheets ----
+// Generic per-user sheet creator. Run once from the Apps Script editor for a new
+// person. Creates their own Log/DailySummary/Workouts tabs with the right columns
+// for their schema, and (for AJ-schema lifters) their own WorkoutSessions tab plus
+// the SHARED ExerciseLibrary program they train off of. Safe to re-run.
+function setupUserSheets(user) {
+  user = (user || '').toLowerCase();
+  if (!user || user === 'aj') return { error: 'Nothing to set up for "' + user + '" (AJ uses the original tabs).' };
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const name = displayName(user);
+  const made = [];
+  const ensure = (tab, headers) => {
+    if (!ss.getSheetByName(tab)) { ss.insertSheet(tab).appendRow(headers); made.push(tab); }
+  };
+
+  ensure(getSheetName('Log', user),
+    ['timestamp','date','type','item','servings','protein','calories','carbs','fat','sugar','sodium']);
+
+  if (isMicheleSchema(user)) {
+    ensure(getSheetName('DailySummary', user),
+      ['date','protein','calories','waterOz','coffeeCount','redwineCount','surfsideCount','titosCount','martiniCount','workoutDone','bodyweight']);
+    // Michele-schema: Workouts tab holds free-form activities (Pilates, walks, gym).
+    ensure(getSheetName('Workouts', user), ['date','timestamp','activityType','notes','extra']);
+  } else {
+    ensure(getSheetName('DailySummary', user),
+      ['date','protein','calories','waterOz','coffeeCount','coorsCount','bourbonCount','workoutDone','bodyweight','mimosaCount']);
+    // AJ-schema: a legacy Workouts tab (drives the workoutDone flag) plus their own
+    // WorkoutSessions log. The ExerciseLibrary program is shared across all lifters.
+    ensure(getSheetName('Workouts', user), ['date','dayName','summary']);
+    ensure(getSheetName('WorkoutSessions', user),
+      ['sessionId','date','dayName','exerciseName','setNumber','weight','reps','feel','timestamp']);
+    if (!ss.getSheetByName('ExerciseLibrary')) setupWorkoutSheets();
+  }
+
+  return { success: true, message: name + "'s sheets ready" + (made.length ? ' (created: ' + made.join(', ') + ').' : ' (already existed).') };
+}
+
+// Convenience wrappers to run from the Apps Script editor.
+function setupNickSheets() { return setupUserSheets('nick'); }
+function setupAdySheets()  { return setupUserSheets('ady'); }
+
 // ---- getSummaryHistory ----
 function getSummaryHistory(user) {
   user = (user || 'aj').toLowerCase();
@@ -871,7 +928,7 @@ function getSummaryHistory(user) {
     const row = data[i];
     if (!row[0]) continue;
     const date = row[0] instanceof Date ? Utilities.formatDate(row[0], TZ, 'yyyy-MM-dd') : row[0];
-    if (user === 'michele') {
+    if (isMicheleSchema(user)) {
       history.push({
         date,
         protein:       row[1]  || 0,
@@ -1075,8 +1132,8 @@ function getExerciseLibrary() {
 
 // ---- getLastWeightsForAllExercises ----
 // Returns map of exerciseName → most recent weight logged (last row wins).
-function getLastWeightsForAllExercises() {
-  const sheet = getSheet('WorkoutSessions');
+function getLastWeightsForAllExercises(user) {
+  const sheet = getSheet(getSheetName('WorkoutSessions', user));
   if (!sheet) return {};
   const data = sheet.getDataRange().getValues();
   const map = {};
@@ -1092,8 +1149,8 @@ function getLastWeightsForAllExercises() {
 
 // ---- getMaxWeightsForAllExercises ----
 // Returns map of exerciseName → all-time max weight (personal record).
-function getMaxWeightsForAllExercises() {
-  const sheet = getSheet('WorkoutSessions');
+function getMaxWeightsForAllExercises(user) {
+  const sheet = getSheet(getSheetName('WorkoutSessions', user));
   if (!sheet) return {};
   const data = sheet.getDataRange().getValues();
   const map = {};
@@ -1109,11 +1166,11 @@ function getMaxWeightsForAllExercises() {
 
 // ---- getNextWorkout ----
 // Returns all exercises (with lastWeight + prWeight) and the next day in rotation.
-function getNextWorkout() {
+function getNextWorkout(user) {
   try {
     const rotation = ['CHEST', 'PULL', 'SHOULDERS', 'LEGS'];
 
-    const sessSheet = getSheet('WorkoutSessions');
+    const sessSheet = getSheet(getSheetName('WorkoutSessions', user));
     if (!sessSheet) return { error: 'Run setupWorkoutSheets() from Apps Script editor, then redeploy.' };
 
     const data = sessSheet.getDataRange().getValues();
@@ -1134,8 +1191,8 @@ function getNextWorkout() {
     const nextDay = rotation[(lastIdx + 1) % rotation.length];
 
     const exercises = getExerciseLibrary();
-    const lastWeights = getLastWeightsForAllExercises();
-    const prWeights   = getMaxWeightsForAllExercises();
+    const lastWeights = getLastWeightsForAllExercises(user);
+    const prWeights   = getMaxWeightsForAllExercises(user);
     exercises.forEach(ex => {
       ex.lastWeight = lastWeights.hasOwnProperty(ex.name) ? lastWeights[ex.name] : null;
       ex.prWeight   = prWeights.hasOwnProperty(ex.name)   ? prWeights[ex.name]   : null;
@@ -1151,8 +1208,8 @@ function getNextWorkout() {
 function logWorkoutSession(body, user) {
   user = (user || 'aj').toLowerCase();
   try {
-    const sessSheet = getSheet('WorkoutSessions');
-    if (!sessSheet) return { error: 'WorkoutSessions sheet not found. Run setupWorkoutSheets() first.' };
+    const sessSheet = getSheet(getSheetName('WorkoutSessions', user));
+    if (!sessSheet) return { error: 'WorkoutSessions sheet not found. Run setup for this user first.' };
 
     const sessionId = body.sessionId || ('sess_' + Date.now());
     const date      = body.date;
@@ -1175,7 +1232,7 @@ function logWorkoutSession(body, user) {
     });
 
     // Write to legacy Workouts sheet so DailySummary workoutDone flag updates
-    const workoutSheet = getSheet('Workouts');
+    const workoutSheet = getSheet(getSheetName('Workouts', user));
     if (workoutSheet) {
       const wData = workoutSheet.getDataRange().getValues();
       const existingDates = wData.slice(1).map(r =>
@@ -1198,8 +1255,8 @@ function logWorkoutSession(body, user) {
 // ---- getWorkoutHistory ----
 function getWorkoutHistory(user) {
   user = (user || 'aj').toLowerCase();
-  if (user === 'michele') return [];  // Michele uses activity logging, not WorkoutSessions
-  const sheet = getSheet('WorkoutSessions');
+  if (isMicheleSchema(user)) return [];  // Michele-schema users log activities, not lifting sessions
+  const sheet = getSheet(getSheetName('WorkoutSessions', user));
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
@@ -1241,15 +1298,15 @@ function getHomeData(dateParam, user) {
   const foods      = getFoods();
   const recentHistory = getSummaryHistory(user).slice(-30);
 
-  if (user === 'michele') {
-    const todayActivities = getMicheleActivityToday(date);
+  if (isMicheleSchema(user)) {
+    const todayActivities = getMicheleActivityToday(date, user);
     return { foods, daySummary, yesterday, nextWorkoutDay: null, recentHistory, todayActivities };
   }
 
   const rotation = ['CHEST', 'PULL', 'SHOULDERS', 'LEGS'];
   let nextDay = 'CHEST';
   try {
-    const sessSheet = getSheet('WorkoutSessions');
+    const sessSheet = getSheet(getSheetName('WorkoutSessions', user));
     if (sessSheet) {
       const sessData = sessSheet.getDataRange().getValues();
       let lastDay = null, latestDate = '';
@@ -1295,7 +1352,7 @@ function deleteLogEntry(body, user) {
 function getCoachAdvice(body, user) {
   user = user || (body.user || 'aj').toLowerCase();
   const message = body.message || 'Review my recent data and give me tips.';
-  const targets = body.targets || (user === 'michele'
+  const targets = body.targets || (isMicheleSchema(user)
     ? { protein: 110, calories: 1500, water: 64 }
     : { protein: 190, calories: 2300, water: 128 });
 
@@ -1315,7 +1372,7 @@ function getCoachAdvice(body, user) {
             ' (' + dayPct + '% through the day)\n';
   ctx += 'NOTE: Today\'s logged numbers are PARTIAL (day is not over). ' +
          'Evaluate pace, not end-of-day totals.\n\n';
-  ctx += 'USER: ' + (user === 'michele' ? 'Michele' : 'AJ') + '\n';
+  ctx += 'USER: ' + displayName(user) + '\n';
   ctx += 'USER TARGETS: ' + targets.protein + 'g protein | ' +
          targets.calories + ' cal | ' + targets.water + 'oz water\n\n';
 
@@ -1325,7 +1382,7 @@ function getCoachAdvice(body, user) {
     const avgWater    = Math.round(past.reduce((s, h) => s + h.waterOz, 0)  / n);
     const protHits    = past.filter(h => h.protein >= targets.protein).length;
     const workoutDays = past.filter(h => h.workoutDone === 'Yes').length;
-    const drinks = user === 'michele'
+    const drinks = isMicheleSchema(user)
       ? past.reduce((s, h) => s + (h.redwineCount||0) + (h.surfsideCount||0) + (h.titosCount||0) + (h.martiniCount||0), 0)
       : past.reduce((s, h) => s + (h.coorsCount||0) + (h.bourbonCount||0) + (h.mimosaCount||0), 0);
 
@@ -1333,7 +1390,7 @@ function getCoachAdvice(body, user) {
     ctx += '  Protein: ' + avgProt + 'g avg (goal hit ' + protHits + '/' + n + ' days)\n';
     ctx += '  Calories: ' + avgCal + ' avg\n';
     ctx += '  Water: ' + avgWater + 'oz avg\n';
-    ctx += '  ' + (user === 'michele' ? 'Active days' : 'Workouts') + ': ' + workoutDays + ' of ' + n + ' days\n';
+    ctx += '  ' + (isMicheleSchema(user) ? 'Active days' : 'Workouts') + ': ' + workoutDays + ' of ' + n + ' days\n';
     ctx += '  Drinks logged: ' + drinks + ' total\n\n';
   }
 
@@ -1344,8 +1401,8 @@ function getCoachAdvice(body, user) {
            (h.bodyweight ? ' / ' + h.bodyweight + 'lbs' : '') + '\n';
   });
 
-  if (user === 'michele') {
-    const actHistory = getMicheleRecentActivities();
+  if (isMicheleSchema(user)) {
+    const actHistory = getMicheleRecentActivities(user);
     if (actHistory.length > 0) {
       ctx += '\nRECENT ACTIVITIES:\n';
       actHistory.slice(0, 10).forEach(a => {
@@ -1366,19 +1423,36 @@ function getCoachAdvice(body, user) {
   const apiKey = PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY');
   if (!apiKey) return { error: 'CLAUDE_API_KEY not set in Script Properties.' };
 
-  const systemPrompt = user === 'michele'
-    ? 'You are a concise, supportive nutrition and wellness coach in "The Grind" app. ' +
+  const name = displayName(user);
+  let systemPrompt;
+  if (user === 'michele') {
+    systemPrompt =
+      'You are a concise, supportive nutrition and wellness coach in "The Grind" app. ' +
       'Michele is 5\'3", 135 lbs, working to lose 5-10 lbs. She does Club Pilates and 2-mile walks. ' +
       'She tracks protein, calories, water, and bodyweight daily. ' +
       'Be encouraging and direct. Highlight wins, gently flag patterns that might slow progress. ' +
       'Keep responses to 2-3 short paragraphs. Use specific numbers from her data. No generic filler.\n\n' +
-      'HER DATA:\n' + ctx
-    : 'You are a concise, no-BS fitness and nutrition coach embedded in "The Grind" tracking app. ' +
-      'The user tracks protein, calories, water, bodyweight, and gym workouts daily. ' +
+      'HER DATA:\n' + ctx;
+  } else if (isMicheleSchema(user)) {
+    // Generic supportive persona for other activity-based users (e.g. Ady). No baked-in
+    // body stats — coach from their own logged targets, bodyweight, and activity.
+    systemPrompt =
+      'You are a concise, supportive nutrition and wellness coach in "The Grind" app. ' +
+      name + ' tracks protein, calories, water, bodyweight, and activity (gym plus Pilates) daily. ' +
+      'Coach from their actual logged numbers and targets — do not assume body stats you were not given. ' +
+      'Be encouraging and direct. Highlight wins, gently flag patterns that might slow progress. ' +
+      'Keep responses to 2-3 short paragraphs. Use specific numbers from their data. No generic filler.\n\n' +
+      'THEIR DATA:\n' + ctx;
+  } else {
+    // AJ-schema users (AJ, Nick): no-BS lifting + nutrition coach.
+    systemPrompt =
+      'You are a concise, no-BS fitness and nutrition coach embedded in "The Grind" tracking app. ' +
+      name + ' tracks protein, calories, water, bodyweight, and gym workouts daily. ' +
       'Give practical, personalized advice based on their actual data. ' +
       'Be direct and encouraging. Keep responses to 2-3 short paragraphs max. ' +
       'Use specific numbers from their data when relevant. No generic filler.\n\n' +
       'THEIR DATA:\n' + ctx;
+  }
 
   try {
     const response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {

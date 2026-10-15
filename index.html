@@ -79,6 +79,20 @@
     color: var(--dim); cursor: pointer; line-height: 24px; white-space: nowrap;
   }
   .profile-pill.michele { color: #c084fc; border-color: rgba(192,132,252,0.35); }
+  .profile-pill.nick { color: #38bdf8; border-color: rgba(56,189,248,0.35); }
+  .profile-pill.ady  { color: #fb7185; border-color: rgba(251,113,133,0.35); }
+  .user-pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+  .user-pick {
+    padding: 18px 12px; border-radius: 12px; border: 1px solid var(--border);
+    background: rgba(255,255,255,0.05); color: var(--text);
+    font-size: 15px; font-weight: 800; letter-spacing: 0.3px; cursor: pointer;
+  }
+  .user-pick:active { transform: scale(0.97); }
+  .user-pick.active { outline: 2px solid currentColor; outline-offset: 1px; }
+  .user-pick.aj      { color: var(--lime); }
+  .user-pick.nick    { color: #38bdf8; }
+  .user-pick.michele { color: #c084fc; }
+  .user-pick.ady     { color: #fb7185; }
 
   /* ---- Status Banner ---- */
   .status-banner {
@@ -448,8 +462,21 @@
     <div class="date" id="headerDate"></div>
   </div>
   <div class="header-right">
-    <button class="profile-pill" id="profilePill" onclick="toggleProfile()">AJ</button>
+    <button class="profile-pill" id="profilePill" onclick="openProfilePicker()">AJ</button>
     <button class="icon-btn" onclick="hardRefresh()" title="Refresh">&#8635;</button>
+  </div>
+</div>
+
+<!-- User Picker Overlay -->
+<div class="settings-overlay" id="userPickerOverlay" onclick="if(event.target===this)closeProfilePicker()">
+  <div class="settings-panel">
+    <h3>Who's logging?</h3>
+    <div class="user-pick-grid">
+      <button class="user-pick aj"      id="pick_aj"      onclick="selectUser('aj')">AJ</button>
+      <button class="user-pick nick"    id="pick_nick"    onclick="selectUser('nick')">Nick</button>
+      <button class="user-pick michele" id="pick_michele" onclick="selectUser('michele')">Michele</button>
+      <button class="user-pick ady"     id="pick_ady"     onclick="selectUser('ady')">Ady</button>
+    </div>
   </div>
 </div>
 
@@ -747,32 +774,43 @@ const RING_CIRC = 263.9;
 // ---- Profile ----
 const PROFILE_DEFAULTS = {
   aj:      { protein: 190, calories: 2300, water: 128 },
-  michele: { protein: 110, calories: 1500, water: 64  }
+  nick:    { protein: 190, calories: 2300, water: 128 },
+  michele: { protein: 110, calories: 1500, water: 64  },
+  ady:     { protein: 110, calories: 1500, water: 64  }
 };
-const currentUser = (localStorage.getItem('grind_user') || 'aj').toLowerCase();
+// Each person maps to a data "schema" that decides their drink set, column layout,
+// workout style and coach tone. Nick mirrors AJ; Ady mirrors Michele.
+const USER_SCHEMA = { aj: 'aj', nick: 'aj', michele: 'michele', ady: 'michele' };
+const USERS = ['aj', 'nick', 'michele', 'ady'];
+function schemaOf(u) { return USER_SCHEMA[(u || 'aj').toLowerCase()] || 'aj'; }
+function nameOf(u) { u = (u || 'aj').toLowerCase(); return u === 'aj' ? 'AJ' : u.charAt(0).toUpperCase() + u.slice(1); }
+const currentUser   = (localStorage.getItem('grind_user') || 'aj').toLowerCase();
+const currentSchema = schemaOf(currentUser);
 
-function toggleProfile() {
-  localStorage.setItem('grind_user', currentUser === 'aj' ? 'michele' : 'aj');
+function selectUser(u) {
+  localStorage.setItem('grind_user', u);
   location.reload(true);
 }
+function openProfilePicker()  { document.getElementById('userPickerOverlay').classList.add('open'); }
+function closeProfilePicker() { document.getElementById('userPickerOverlay').classList.remove('open'); }
 
 // Apply profile UI immediately
 (function initProfile() {
   const pill = document.getElementById('profilePill');
-  if (currentUser === 'michele') {
-    pill.textContent = 'Michele';
-    pill.classList.add('michele');
+  pill.textContent = nameOf(currentUser);
+  pill.classList.add(currentUser);
+  if (currentSchema === 'michele') {
     document.getElementById('ajDrinks').style.display      = 'none';
     document.getElementById('micheleDrinks').style.display = 'grid';
     document.getElementById('ajQuickTaps').style.display      = 'none';
     document.getElementById('micheleQuickTaps').style.display = 'grid';
-  } else {
-    pill.textContent = 'AJ';
   }
+  const active = document.getElementById('pick_' + currentUser);
+  if (active) active.classList.add('active');
 })();
 
 // ---- Targets (per-user, stored separately) ----
-const DEFAULT_TARGETS = PROFILE_DEFAULTS[currentUser];
+const DEFAULT_TARGETS = PROFILE_DEFAULTS[currentUser] || PROFILE_DEFAULTS.aj;
 function getTargets() {
   const raw = localStorage.getItem('grind_targets_' + currentUser);
   return raw ? JSON.parse(raw) : { ...DEFAULT_TARGETS };
@@ -903,8 +941,8 @@ function renderWeeklySummary(history) {
 // ---- Weight Visualization ----
 let wvizData = [];
 let wvizSlideIdx = 0;
-const WVIZ_MIN = currentUser === 'michele' ? 120 : 220;
-const WVIZ_MAX = currentUser === 'michele' ? 155 : 250;
+const WVIZ_MIN = currentSchema === 'michele' ? 120 : 220;
+const WVIZ_MAX = currentSchema === 'michele' ? 155 : 250;
 
 function wvizFrac(w) {
   return Math.max(0, Math.min(1, (w - WVIZ_MIN) / (WVIZ_MAX - WVIZ_MIN)));
@@ -1136,7 +1174,7 @@ function renderTotals(t) {
     ws.textContent = 'Rest'; ws.className = 'ms-value rest';
   }
 
-  if (currentUser === 'michele') {
+  if (currentSchema === 'michele') {
     document.getElementById('totalRedwine').textContent  = t.redwineCount  || 0;
     document.getElementById('totalSurfside').textContent = t.surfsideCount || 0;
     document.getElementById('totalTitos').textContent    = t.titosCount    || 0;
@@ -1151,7 +1189,7 @@ function renderTotals(t) {
 
 // ---- Next Workout Preview ----
 function renderNextWorkout(nextDay, workoutDone) {
-  if (currentUser === 'michele') {
+  if (currentSchema === 'michele') {
     document.getElementById('nextWorkoutStrip').style.display = 'none';
     return;
   }
