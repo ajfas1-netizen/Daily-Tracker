@@ -418,6 +418,35 @@
       border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #c084fc;
     }
     .act-empty { color: #555; font-size: 13px; text-align: center; padding: 16px 0; }
+    .act-today-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .act-clear-btn {
+      background: none; border: 1px solid rgba(239,68,68,0.4); color: #f87171;
+      font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+      border-radius: 999px; padding: 4px 11px; cursor: pointer;
+    }
+    .act-clear-btn:active { background: rgba(239,68,68,0.12); }
+    .act-modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none;
+      align-items: center; justify-content: center; z-index: 100; padding: 24px;
+    }
+    .act-modal-overlay.open { display: flex; }
+    .act-modal {
+      width: 100%; max-width: 320px; background: #1a1c22;
+      border: 1px solid rgba(192,132,252,0.3); border-radius: 18px; padding: 22px;
+    }
+    .act-modal-title { font-size: 15px; font-weight: 800; color: #f0f0f0; margin-bottom: 14px; text-align: center; }
+    .act-modal-row { display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 18px; }
+    .act-modal-row input {
+      width: 120px; background: #101216; border: 1px solid rgba(192,132,252,0.35); border-radius: 12px;
+      color: #f0f0f0; font-size: 22px; font-weight: 800; text-align: center; padding: 12px;
+    }
+    .act-modal-unit { font-size: 15px; color: #888; font-weight: 700; }
+    .act-modal-btns { display: flex; gap: 10px; }
+    .act-modal-cancel, .act-modal-log {
+      flex: 1; padding: 13px; border-radius: 12px; font-size: 14px; font-weight: 800; cursor: pointer; border: 1px solid;
+    }
+    .act-modal-cancel { background: none; border-color: var(--border); color: #888; }
+    .act-modal-log { background: #c084fc; border-color: #c084fc; color: #1a1c22; }
 
     /* ---- Save Plan / Add Exercises ---- */
     .save-plan-btn {
@@ -474,15 +503,38 @@
       <span class="act-name">Walk</span>
       <span class="act-sub">~2 miles</span>
     </button>
-    <button class="act-btn" id="actBtn_walk" onclick="logActivity('Walk')">
+    <button class="act-btn" id="actBtn_walk" onclick="openWalkModal()">
       <span class="act-icon">🚶</span>
       <span class="act-name">Walk</span>
-      <span class="act-sub">Custom</span>
+      <span class="act-sub">Enter miles</span>
+    </button>
+    <button class="act-btn" id="actBtn_stairs" onclick="logActivity('Stair Climber 30 min')">
+      <span class="act-icon">🪜</span>
+      <span class="act-name">Stair Climber</span>
+      <span class="act-sub">30 min</span>
     </button>
   </div>
-  <div class="act-today-title">Today's Activity</div>
+  <div class="act-today-head">
+    <span class="act-today-title" style="margin-bottom:0">Today's Activity</span>
+    <button class="act-clear-btn" id="actClearBtn" onclick="clearTodayActivity()" style="display:none">Clear</button>
+  </div>
   <div class="act-logged-list" id="actLoggedList">
     <div class="act-empty">Nothing logged yet today.</div>
+  </div>
+
+  <!-- Custom walk mileage modal -->
+  <div class="act-modal-overlay" id="walkModal" onclick="if(event.target===this)closeWalkModal()">
+    <div class="act-modal">
+      <div class="act-modal-title">How far did you walk?</div>
+      <div class="act-modal-row">
+        <input type="number" id="walkMiles" inputmode="decimal" step="0.1" min="0.1" max="50" placeholder="0.0">
+        <span class="act-modal-unit">miles</span>
+      </div>
+      <div class="act-modal-btns">
+        <button class="act-modal-cancel" onclick="closeWalkModal()">Cancel</button>
+        <button class="act-modal-log" onclick="logCustomWalk()">Log Walk</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -570,6 +622,46 @@ const currentUser = (localStorage.getItem('grind_user') || 'aj').toLowerCase();
 const USER_SCHEMA = { aj: 'aj', nick: 'aj', michele: 'michele', ady: 'michele' };
 const currentSchema = USER_SCHEMA[currentUser] || 'aj';
 
+// ---- Custom walk (type the miles) ----
+function openWalkModal() {
+  document.getElementById('walkMiles').value = '';
+  document.getElementById('walkModal').classList.add('open');
+  setTimeout(() => document.getElementById('walkMiles').focus(), 80);
+}
+function closeWalkModal() { document.getElementById('walkModal').classList.remove('open'); }
+function logCustomWalk() {
+  const mi = parseFloat(document.getElementById('walkMiles').value);
+  if (!mi || mi <= 0 || mi > 50) { alert('Enter a distance between 0.1 and 50 miles.'); return; }
+  closeWalkModal();
+  const miles = Number.isInteger(mi) ? mi : parseFloat(mi.toFixed(1));
+  logActivity('Walk ' + miles + ' mi');
+}
+
+// ---- Clear today's activity log ----
+async function clearTodayActivity() {
+  if (!confirm("Clear today's activity log? This removes everything logged today so you can start fresh.")) return;
+  const btn = document.getElementById('actClearBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'clearTodayActivities', user: currentUser })
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.querySelectorAll('.act-btn').forEach(b => { b.classList.remove('logged'); b.disabled = false; });
+      loadMicheleActivities();
+    } else {
+      alert('Could not clear: ' + (data.error || 'unknown error'));
+    }
+  } catch (err) {
+    alert('Failed to clear — check connection.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Clear'; }
+  }
+}
+
 // ---- Activity Logging (Michele-schema users: Michele, Ady) ----
 async function logActivity(activityType) {
   const idMap = {
@@ -606,6 +698,8 @@ async function loadMicheleActivities() {
     const data  = await res.json();
     const acts  = data.todayActivities || [];
     const list  = document.getElementById('actLoggedList');
+    const clearBtn = document.getElementById('actClearBtn');
+    if (clearBtn) clearBtn.style.display = acts.length ? 'inline-block' : 'none';
     if (!acts.length) {
       list.innerHTML = '<div class="act-empty">Nothing logged yet today.</div>';
       return;

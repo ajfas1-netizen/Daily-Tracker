@@ -152,6 +152,9 @@ function doPost(e) {
     case 'logActivity':
       result = logActivity(body, user);
       break;
+    case 'clearTodayActivities':
+      result = clearTodayActivities(body, user);
+      break;
     case 'setupMicheleSheets':
       result = setupMicheleSheets();
       break;
@@ -837,6 +840,24 @@ function logActivity(body, user) {
 
   rebuildDailySummary(date, user);
   return { success: true, activityType };
+}
+
+// Clear today's rows from a user's Workouts (activity) tab so they can re-log.
+// Also resets the day's workoutDone flag via the summary rebuild.
+function clearTodayActivities(body, user) {
+  user = (user || body.user || 'michele').toLowerCase();
+  const date  = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const sheet = getSheet(getSheetName('Workouts', user));
+  if (!sheet) return { error: 'Activity sheet not found for ' + displayName(user) + '.' };
+  const data = sheet.getDataRange().getValues();
+  let removed = 0;
+  for (let i = data.length - 1; i >= 1; i--) {
+    const rowDate = data[i][0] instanceof Date
+      ? Utilities.formatDate(data[i][0], TZ, 'yyyy-MM-dd') : String(data[i][0]);
+    if (rowDate === date) { sheet.deleteRow(i + 1); removed++; }
+  }
+  rebuildDailySummary(date, user);
+  return { success: true, removed };
 }
 
 function getMicheleActivityToday(date, user) {
