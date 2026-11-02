@@ -315,6 +315,19 @@
 
   /* ---- Quick Tap ---- */
   .quick-taps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pool-launch {
+    width: 100%; display: flex; align-items: center; gap: 14px; cursor: pointer;
+    margin: 16px 0 4px; padding: 16px 18px; border-radius: 16px;
+    background: linear-gradient(135deg, #0e4a33, #072c1e);
+    border: 1px solid rgba(200,255,0,0.35); color: #eafff4;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  }
+  .pool-launch:active { transform: scale(0.99); }
+  .pl-ball { font-size: 30px; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5)); }
+  .pl-text { flex: 1; display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
+  .pl-title { font-size: 16px; font-weight: 900; letter-spacing: 1px; }
+  .pl-sub { font-size: 11px; color: #7fa693; font-weight: 600; margin-top: 2px; }
+  .pl-arrow { font-size: 20px; color: #c8ff00; font-weight: 900; }
   .tap-btn {
     background: var(--card2); border: 1px solid var(--border); border-radius: 14px; padding: 17px 10px;
     font-size: 15px; font-weight: 700; cursor: pointer; color: var(--text);
@@ -728,6 +741,16 @@
   </div>
 </div>
 
+
+<!-- Pool launcher -->
+<button class="pool-launch" onclick="openPool()">
+  <span class="pl-ball">🎱</span>
+  <span class="pl-text">
+    <span class="pl-title">RACK CITY</span>
+    <span class="pl-sub">Pool night · track the grudge matches</span>
+  </span>
+  <span class="pl-arrow">→</span>
+</button>
 
 <!-- Fixed Bottom Navigation (2×3) -->
 <nav class="bottom-nav">
@@ -1334,6 +1357,7 @@ function openLog()           { window.location.href = 'log.html'; }
 function openCoach()         { window.location.href = 'coach.html'; }
 function openDashboard()     { window.location.href = 'dashboard.html'; }
 function openRecipeBuilder() { window.location.href = 'recipe.html' + dayParam(); }
+function openPool()          { window.location.href = 'pool.html'; }
 
 // ---- Hard Refresh ----
 function hardRefresh() {

@@ -89,6 +89,9 @@ function doGet(e) {
     case 'getWorkoutHistory':
       result = getWorkoutHistory(user);
       break;
+    case 'getPoolGames':
+      result = getPoolGames();
+      break;
     default:
       result = { error: 'Unknown action: ' + action };
   }
@@ -154,6 +157,15 @@ function doPost(e) {
       break;
     case 'clearTodayActivities':
       result = clearTodayActivities(body, user);
+      break;
+    case 'logPoolGame':
+      result = logPoolGame(body);
+      break;
+    case 'deletePoolGame':
+      result = deletePoolGame(body);
+      break;
+    case 'setupPoolSheet':
+      result = setupPoolSheet();
       break;
     case 'setupMicheleSheets':
       result = setupMicheleSheets();
@@ -1516,4 +1528,69 @@ function getCoachAdvice(body, user) {
   } catch (err) {
     return { error: 'Coach error: ' + err.message };
   }
+}
+
+// ============================================================
+//  POOL / BILLIARDS  (shared across all players — no user suffix)
+//  Sheet: PoolGames | timestamp | date | venue | winner | loser | lossType | matchId
+//  lossType: clean | scratch | scratch8 | early8
+// ============================================================
+function setupPoolSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  if (!ss.getSheetByName('PoolGames')) {
+    ss.insertSheet('PoolGames')
+      .appendRow(['timestamp', 'date', 'venue', 'winner', 'loser', 'lossType', 'matchId']);
+    return { success: true, message: 'PoolGames created. Rack ’em. 🎱' };
+  }
+  return { success: true, message: 'PoolGames already exists.' };
+}
+
+function logPoolGame(body) {
+  const sheet = getSheet('PoolGames');
+  if (!sheet) return { error: 'PoolGames sheet not found. Run setupPoolSheet() first.' };
+  const now = new Date();
+  const timestamp = now.toISOString();
+  const date = Utilities.formatDate(now, TZ, 'yyyy-MM-dd');
+  const venue    = body.venue    || '';
+  const winner   = body.winner   || '';
+  const loser    = body.loser    || '';
+  const lossType = body.lossType || 'clean';
+  const matchId  = body.matchId  || ('m_' + now.getTime());
+  if (!winner || !loser) return { error: 'winner and loser required' };
+  sheet.appendRow([timestamp, date, venue, winner, loser, lossType, matchId]);
+  return { success: true, timestamp, matchId };
+}
+
+function getPoolGames() {
+  const sheet = getSheet('PoolGames');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  const out = [];
+  for (let i = 1; i < data.length; i++) {
+    const r = data[i];
+    if (!r[0]) continue;
+    out.push({
+      timestamp: r[0] instanceof Date ? r[0].toISOString() : String(r[0]),
+      date:      r[1] instanceof Date ? Utilities.formatDate(r[1], TZ, 'yyyy-MM-dd') : String(r[1]),
+      venue:     r[2],
+      winner:    r[3],
+      loser:     r[4],
+      lossType:  r[5] || 'clean',
+      matchId:   r[6]
+    });
+  }
+  return out;
+}
+
+function deletePoolGame(body) {
+  const sheet = getSheet('PoolGames');
+  if (!sheet) return { error: 'PoolGames not found' };
+  const ts = body.timestamp;
+  if (!ts) return { error: 'timestamp required' };
+  const data = sheet.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    const rowTs = data[i][0] instanceof Date ? data[i][0].toISOString() : String(data[i][0]);
+    if (rowTs === ts) { sheet.deleteRow(i + 1); return { success: true }; }
+  }
+  return { error: 'not found' };
 }
