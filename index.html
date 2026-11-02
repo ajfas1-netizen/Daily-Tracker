@@ -721,6 +721,7 @@
   <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
     <button class="tap-btn tap-redwine"  onclick="tapLiquid('redwine', this)"><span class="tap-icon">🍷</span><span class="sub">200 cal</span></button>
     <button class="tap-btn tap-surfside" onclick="tapLiquid('surfside', this)"><span class="tap-icon">🧋</span><span class="sub">100 cal</span></button>
+    <button class="tap-btn tap-surfside" id="surfsideLemBtn" style="display:none" onclick="tapLiquid('surfsidelem', this)"><span class="tap-icon">🍋</span><span class="sub">100 cal</span></button>
     <button class="tap-btn tap-titos"    onclick="tapLiquid('titos', this)"><span class="tap-icon">🥃</span><span class="sub">98 cal</span></button>
     <button class="tap-btn tap-martini"  onclick="tapLiquid('martini', this)"><span class="tap-icon">🍸</span><span class="sub">180 cal</span></button>
     <button class="tap-btn tap-mimosa"   onclick="tapLiquid('mimosa', this)"><span class="tap-icon">🥂</span><span class="sub">135 cal</span></button>
@@ -807,6 +808,11 @@ function closeProfilePicker() { document.getElementById('userPickerOverlay').cla
     document.getElementById('micheleDrinks').style.display = 'grid';
     document.getElementById('ajQuickTaps').style.display      = 'none';
     document.getElementById('micheleQuickTaps').style.display = 'grid';
+  }
+  // Ady-only drinks
+  if (currentUser === 'ady') {
+    const lem = document.getElementById('surfsideLemBtn');
+    if (lem) lem.style.display = '';
   }
   const active = document.getElementById('pick_' + currentUser);
   if (active) active.classList.add('active');

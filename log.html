@@ -76,6 +76,16 @@
     .mc-fill.water    { background: var(--accent); }
     .mc-fill.hit      { background: var(--green); }
 
+    /* ---- Carbs / Fat / Sugar sub-row ---- */
+    .macro-bar-sub {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 7px 16px; display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px; flex-shrink: 0;
+    }
+    .msc-chip { display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .msc-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dim); }
+    .msc-value { font-size: 13px; font-weight: 800; }
+
     /* ---- Day Navigation ---- */
     .day-nav {
       display: flex; justify-content: space-between; align-items: center;
@@ -112,6 +122,9 @@
     .log-pill.protein  { background: rgba(59,130,246,0.15);  color: #60a5fa; }
     .log-pill.calories { background: rgba(245,158,11,0.15);  color: #fbbf24; }
     .log-pill.water    { background: rgba(59,130,246,0.12);  color: #93c5fd; }
+    .log-pill.carbs    { background: rgba(45,212,191,0.15);  color: #2dd4bf; }
+    .log-pill.fat      { background: rgba(192,132,252,0.15); color: #c084fc; }
+    .log-pill.sugar    { background: rgba(244,114,182,0.15); color: #f472b6; }
     .log-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
     .log-item-time { font-size: 10px; color: var(--dim); white-space: nowrap; }
     .log-del-btn {
@@ -172,6 +185,12 @@
     <div class="mc-value water" id="mcWater">--</div>
     <div class="mc-progress"><div class="mc-fill water" id="mcWaterBar" style="width:0%"></div></div>
   </div>
+</div>
+
+<div class="macro-bar-sub">
+  <div class="msc-chip"><span class="msc-label">Carbs</span><span class="msc-value" id="mcCarbs" style="color:#2dd4bf">--</span></div>
+  <div class="msc-chip"><span class="msc-label">Fat</span><span class="msc-value" id="mcFat" style="color:#c084fc">--</span></div>
+  <div class="msc-chip"><span class="msc-label">Sugar</span><span class="msc-value" id="mcSugar" style="color:#f472b6">--</span></div>
 </div>
 
 <div class="day-nav">
@@ -248,6 +267,9 @@ function renderMacros(t) {
   document.getElementById('mcProtein').textContent  = (t.protein  || 0) + 'g';
   document.getElementById('mcCalories').textContent = (t.calories || 0).toLocaleString();
   document.getElementById('mcWater').textContent    = (t.waterOz  || 0) + ' oz';
+  document.getElementById('mcCarbs').textContent    = Math.round(t.carbs || 0) + 'g';
+  document.getElementById('mcFat').textContent      = Math.round(t.fat   || 0) + 'g';
+  document.getElementById('mcSugar').textContent    = Math.round(t.sugar || 0) + 'g';
 
   const protBar = document.getElementById('mcProtBar');
   protBar.style.width = pPct + '%';
@@ -290,6 +312,9 @@ function renderLog(entries) {
     const pills = [
       e.protein  > 0 ? `<span class="log-pill protein">${e.protein}p</span>`   : '',
       e.calories > 0 ? `<span class="log-pill calories">${e.calories} cal</span>` : '',
+      e.carbs    > 0 ? `<span class="log-pill carbs">${Math.round(e.carbs)}c</span>` : '',
+      e.fat      > 0 ? `<span class="log-pill fat">${Math.round(e.fat)}f</span>`   : '',
+      e.sugar    > 0 ? `<span class="log-pill sugar">${Math.round(e.sugar)}s</span>` : '',
       (e.type === 'water') ? `<span class="log-pill water">${e.servings} oz</span>` : ''
     ].join('');
 

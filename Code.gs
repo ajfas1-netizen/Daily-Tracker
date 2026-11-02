@@ -305,6 +305,10 @@ function logLiquid(body, user) {
       item = 'Surfside Iced Tea';
       protein = 0; calories = 100; carbs = 2; fat = 0; sugar = 1; sodium = 0;
       break;
+    case 'surfsidelem':
+      item = 'Surfside Lemonade';
+      protein = 0; calories = 100; carbs = 2; fat = 0; sugar = 1; sodium = 0;
+      break;
     case 'titos':
       item = "Tito's & Soda";
       protein = 0; calories = 98; carbs = 0; fat = 0; sugar = 0; sodium = 0;
@@ -361,7 +365,7 @@ function getToday(dateParam, user) {
     if (type === 'bourbon')  bourbonCount += 1;
     if (type === 'mimosa')   mimosaCount  += 1;
     if (type === 'redwine')  redwineCount += 1;
-    if (type === 'surfside') surfsideCount+= 1;
+    if (type === 'surfside' || type === 'surfsidelem') surfsideCount+= 1;
     if (type === 'titos')    titosCount   += 1;
     if (type === 'martini')  martiniCount += 1;
   }
@@ -429,7 +433,7 @@ function rebuildDailySummary(date, user) {
     if (type === 'bourbon')  bourbonCount += 1;
     if (type === 'mimosa')   mimosaCount  += 1;
     if (type === 'redwine')  redwineCount += 1;
-    if (type === 'surfside') surfsideCount+= 1;
+    if (type === 'surfside' || type === 'surfsidelem') surfsideCount+= 1;
     if (type === 'titos')    titosCount   += 1;
     if (type === 'martini')  martiniCount += 1;
   }
@@ -533,7 +537,7 @@ function getYesterday(user) {
     if (type === 'bourbon')  bourbonCount += 1;
     if (type === 'mimosa')   mimosaCount  += 1;
     if (type === 'redwine')  redwineCount += 1;
-    if (type === 'surfside') surfsideCount+= 1;
+    if (type === 'surfside' || type === 'surfsidelem') surfsideCount+= 1;
     if (type === 'titos')    titosCount   += 1;
     if (type === 'martini')  martiniCount += 1;
     if (type === 'food')     foodItems.push(row[3]);
