@@ -161,6 +161,9 @@ function doPost(e) {
     case 'logPoolGame':
       result = logPoolGame(body);
       break;
+    case 'logPoolGamesBulk':
+      result = logPoolGamesBulk(body);
+      break;
     case 'deletePoolGame':
       result = deletePoolGame(body);
       break;
@@ -1559,6 +1562,23 @@ function logPoolGame(body) {
   if (!winner || !loser) return { error: 'winner and loser required' };
   sheet.appendRow([timestamp, date, venue, winner, loser, lossType, matchId]);
   return { success: true, timestamp, matchId };
+}
+
+// Append many games at once (used to seed existing score history).
+function logPoolGamesBulk(body) {
+  const sheet = getSheet('PoolGames');
+  if (!sheet) return { error: 'PoolGames sheet not found. Run setupPoolSheet() first.' };
+  const games = body.games || [];
+  if (!games.length) return { error: 'no games provided' };
+  const base = Date.now();
+  const rows = games.map(function (g, idx) {
+    const d = new Date(base + idx * 1000);
+    const ts = g.timestamp || d.toISOString();
+    const date = g.date || Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
+    return [ts, date, g.venue || '', g.winner || '', g.loser || '', g.lossType || 'clean', g.matchId || ('m_bulk_' + base)];
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 7).setValues(rows);
+  return { success: true, added: rows.length };
 }
 
 function getPoolGames() {
