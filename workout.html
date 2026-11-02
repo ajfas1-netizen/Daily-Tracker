@@ -67,6 +67,42 @@
     }
     .day-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
     .day-tab.supplemental { border-left: 1px solid var(--border); }
+
+    /* ---- Day Picker (choose workout first) ---- */
+    .day-picker { display: grid; gap: 12px; margin-top: 4px; }
+    .day-pick-card {
+      position: relative; display: flex; align-items: center; gap: 14px;
+      width: 100%; text-align: left; cursor: pointer;
+      padding: 18px 16px; border-radius: 14px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      transition: transform 0.08s, border-color 0.15s;
+    }
+    .day-pick-card:active { transform: scale(0.985); }
+    .day-pick-card.suggested { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+    .dp-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+    .dp-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .dp-name { font-size: 16px; font-weight: 800; letter-spacing: 0.2px; }
+    .dp-sub { font-size: 12px; color: var(--dim); }
+    .dp-badge {
+      margin-left: auto; flex-shrink: 0; font-size: 10px; font-weight: 800; letter-spacing: 0.4px;
+      color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 3px 9px;
+    }
+    .change-day-btn {
+      background: none; border: none; color: var(--dim); font-size: 12px; font-weight: 700;
+      cursor: pointer; padding: 0 0 8px; letter-spacing: 0.3px;
+    }
+    .change-day-btn:active { color: var(--accent); }
+
+    /* ---- Gym / Activity mode toggle (dual-mode users) ---- */
+    .mode-toggle {
+      display: flex; gap: 6px; padding: 10px 16px 0;
+    }
+    .mode-opt {
+      flex: 1; padding: 10px; border-radius: 10px; cursor: pointer;
+      background: var(--surface); border: 1px solid var(--border); color: var(--dim);
+      font-size: 13px; font-weight: 800; letter-spacing: 0.3px;
+    }
+    .mode-opt.active { color: var(--accent); border-color: var(--accent); }
     .suppl-hint {
       text-align: center; font-size: 11px; color: var(--dim);
       padding: 8px 0 14px; margin-bottom: 2px;
@@ -413,7 +449,13 @@
   <div class="timer" id="timerDisplay">0:00</div>
 </div>
 
-<!-- Michele Activity Log (shown instead of gym UI) -->
+<!-- Gym / Activity mode toggle (shown only for dual-mode users like Ady) -->
+<div class="mode-toggle" id="modeToggle" style="display:none">
+  <button class="mode-opt" id="modeGym" onclick="setWorkoutMode('gym')">🏋️ Gym</button>
+  <button class="mode-opt" id="modeActivity" onclick="setWorkoutMode('activity')">🧘 Activity</button>
+</div>
+
+<!-- Activity Log (Pilates / walks — Michele-schema users) -->
 <div id="micheleActivity" style="display:none">
   <div class="act-title">LOG ACTIVITY</div>
   <div class="act-grid">
@@ -444,8 +486,8 @@
   </div>
 </div>
 
-<!-- AJ Gym UI -->
-<div id="ajGym">
+<!-- Gym UI (AJ, Nick, and Ady in Gym mode) -->
+<div id="ajGym" style="display:none">
 
 <!-- Day Tabs -->
 <div class="day-tabs" id="dayTabs">
@@ -840,10 +882,51 @@ async function loadWorkout() {
       clearWorkoutDraft();
     }
 
-    showPlanScreen(primaryDay);
+    showDayPicker();
   } catch (err) {
     showError('Could not load workout. Check your connection and try again.');
   }
+}
+
+// ---- Day Picker: choose the day you want to train (suggested day pre-badged) ----
+const DAY_ORDER  = ['CHEST', 'PULL', 'SHOULDERS', 'LEGS'];
+const DAY_LABELS = { CHEST: 'Chest & Triceps', PULL: 'Back & Biceps', SHOULDERS: 'Shoulders', LEGS: 'Legs' };
+const DAY_ICONS  = { CHEST: '🏋️', PULL: '🧗', SHOULDERS: '🙆', LEGS: '🦵' };
+
+function showDayPicker() {
+  planMode = true;
+  document.getElementById('dayTabs').style.display = 'none';
+  document.getElementById('finishWrap').style.display = 'none';
+  document.getElementById('headerDay').textContent = 'PICK A DAY';
+
+  const present = DAY_ORDER.filter(d => fullExerciseList.some(e => e.day === d));
+  let html = `
+    <div class="plan-header">
+      <div class="plan-day-label">Today's Workout</div>
+      <div class="plan-subtitle">Pick the day you want to train</div>
+    </div>
+    <div class="day-picker">`;
+  present.forEach(d => {
+    const isSug = d === primaryDay;
+    const count = fullExerciseList.filter(e => e.day === d).length;
+    html += `
+      <button class="day-pick-card${isSug ? ' suggested' : ''}" onclick="pickDay('${d}')">
+        <span class="dp-icon">${DAY_ICONS[d] || '🏋️'}</span>
+        <span class="dp-text">
+          <span class="dp-name">${DAY_LABELS[d] || d}</span>
+          <span class="dp-sub">${count} exercises</span>
+        </span>
+        ${isSug ? '<span class="dp-badge">Suggested</span>' : ''}
+      </button>`;
+  });
+  html += `</div><div style="height:20px"></div>`;
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+function pickDay(day) {
+  primaryDay = day;
+  currentDay = day;
+  showPlanScreen(day);
 }
 
 function showPlanScreen(day) {
@@ -934,6 +1017,7 @@ function renderPlanScreen(dayExercises, hasSavedPlan) {
     : 'Tap to deselect — or add functional & core below';
   let html = `
     <div class="plan-header">
+      <button class="change-day-btn" onclick="showDayPicker()">&#8592; Change day</button>
       <div class="plan-day-label">${currentDay} DAY</div>
       <div class="plan-subtitle">${subtitle}</div>
     </div>`;
@@ -1525,14 +1609,42 @@ function closeExInfo() {
 function goHome() { releaseWakeLock(); window.location.href = 'index.html'; }
 
 // ---- Profile-aware initialization ----
-// Michele-schema users (Michele, Ady) get the simple activity screen; AJ-schema
-// users (AJ, Nick) get the structured gym UI driven by the shared program.
-if (currentSchema === 'michele') {
+// Three cases: gym-only (AJ, Nick) -> structured gym UI; activity-only (Michele)
+// -> Pilates/walk screen; dual (Ady) -> a Gym/Activity toggle with both.
+const GYM_USERS = { aj: true, nick: true, ady: true };
+const isGymUser = !!GYM_USERS[currentUser];
+const isActivityUser = currentSchema === 'michele';
+let gymLoaded = false;
+
+function setWorkoutMode(mode) {
+  try { localStorage.setItem('grind_wkmode_' + currentUser, mode); } catch (e) {}
+  document.getElementById('modeGym').classList.toggle('active', mode === 'gym');
+  document.getElementById('modeActivity').classList.toggle('active', mode === 'activity');
+  if (mode === 'gym') {
+    document.getElementById('micheleActivity').style.display = 'none';
+    document.getElementById('ajGym').style.display = 'block';
+    if (!gymLoaded) { gymLoaded = true; loadWorkout(); }
+  } else {
+    document.getElementById('ajGym').style.display = 'none';
+    document.getElementById('micheleActivity').style.display = 'block';
+    loadMicheleActivities();
+  }
+}
+
+if (isGymUser && isActivityUser) {
+  // Ady: let her choose. Default to her last-used mode, else Gym.
+  document.getElementById('modeToggle').style.display = 'flex';
+  let saved = 'gym';
+  try { saved = localStorage.getItem('grind_wkmode_' + currentUser) || 'gym'; } catch (e) {}
+  setWorkoutMode(saved);
+} else if (isGymUser) {
+  document.getElementById('ajGym').style.display = 'block';
+  gymLoaded = true;
+  loadWorkout();
+} else {
   document.getElementById('micheleActivity').style.display = 'block';
   document.getElementById('ajGym').style.display = 'none';
   loadMicheleActivities();
-} else {
-  loadWorkout();
 }
 </script>
 

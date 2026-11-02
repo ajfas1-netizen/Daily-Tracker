@@ -14,6 +14,11 @@ function getSheet(tabName) {
 const USER_SCHEMA = { aj: 'aj', nick: 'aj', michele: 'michele', ady: 'michele' };
 function userSchema(user) { return USER_SCHEMA[(user || 'aj').toLowerCase()] || 'aj'; }
 function isMicheleSchema(user) { return userSchema(user) === 'michele'; }
+
+// Who can log structured gym (lifting) sessions — independent of nutrition schema.
+// AJ and Nick are AJ-schema lifters; Ady is Michele-schema for food but also hits the gym.
+const GYM_USERS = { aj: true, nick: true, ady: true };
+function isGymUser(user) { return !!GYM_USERS[(user || 'aj').toLowerCase()]; }
 function displayName(user) {
   const u = (user || 'aj').toLowerCase();
   return u === 'aj' ? 'AJ' : u.charAt(0).toUpperCase() + u.slice(1);
@@ -901,9 +906,13 @@ function setupUserSheets(user) {
   } else {
     ensure(getSheetName('DailySummary', user),
       ['date','protein','calories','waterOz','coffeeCount','coorsCount','bourbonCount','workoutDone','bodyweight','mimosaCount']);
-    // AJ-schema: a legacy Workouts tab (drives the workoutDone flag) plus their own
-    // WorkoutSessions log. The ExerciseLibrary program is shared across all lifters.
+    // AJ-schema: a legacy Workouts tab drives the workoutDone flag.
     ensure(getSheetName('Workouts', user), ['date','dayName','summary']);
+  }
+
+  // Gym-capable users (any schema) get their own structured-session log plus the
+  // SHARED ExerciseLibrary program they train off of.
+  if (isGymUser(user)) {
     ensure(getSheetName('WorkoutSessions', user),
       ['sessionId','date','dayName','exerciseName','setNumber','weight','reps','feel','timestamp']);
     if (!ss.getSheetByName('ExerciseLibrary')) setupWorkoutSheets();
@@ -1241,7 +1250,13 @@ function logWorkoutSession(body, user) {
           : String(r[0])
       );
       if (!existingDates.includes(date)) {
-        workoutSheet.appendRow([date, dayName, sets.length + ' sets']);
+        if (isMicheleSchema(user)) {
+          // Michele-schema user (e.g. Ady) whose Workouts tab is activity-formatted:
+          // record the gym session as an activity so it shows on her home screen.
+          workoutSheet.appendRow([date, new Date().toISOString(), dayName + ' (Gym)', sets.length + ' sets', '']);
+        } else {
+          workoutSheet.appendRow([date, dayName, sets.length + ' sets']);
+        }
       }
     }
 
@@ -1255,7 +1270,7 @@ function logWorkoutSession(body, user) {
 // ---- getWorkoutHistory ----
 function getWorkoutHistory(user) {
   user = (user || 'aj').toLowerCase();
-  if (isMicheleSchema(user)) return [];  // Michele-schema users log activities, not lifting sessions
+  if (!isGymUser(user)) return [];  // non-gym users (e.g. Michele) log activities, not lifting sessions
   const sheet = getSheet(getSheetName('WorkoutSessions', user));
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
