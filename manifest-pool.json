@@ -1,0 +1,14 @@
+{
+  "name": "Rack City",
+  "short_name": "Rack City",
+  "start_url": "pool.html",
+  "scope": "pool.html",
+  "display": "standalone",
+  "background_color": "#05140e",
+  "theme_color": "#06281c",
+  "icons": [
+    { "src": "pool-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "pool-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "pool-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

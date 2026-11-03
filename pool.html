@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Rack City">
 <meta name="theme-color" content="#06281c">
+<link rel="manifest" href="manifest-pool.json">
 <link rel="apple-touch-icon" href="pool-apple-touch.png">
 <link rel="icon" type="image/svg+xml" href="pool-icon.svg">
 <link rel="icon" type="image/png" sizes="192x192" href="pool-icon-192.png">
@@ -294,14 +295,6 @@
     <div class="chip-grid">
       <button class="chip venue" id="venue_Stix" onclick="setVenue('Stix')">🍺 Stix</button>
       <button class="chip venue" id="venue_Charlie's" onclick="setVenue(&quot;Charlie's&quot;)">🥃 Charlie's</button>
-    </div>
-
-    <div class="setup-q">Race to</div>
-    <div class="chip-grid">
-      <button class="chip race" onclick="setRace(3)" id="race_3">3</button>
-      <button class="chip race" onclick="setRace(5)" id="race_5">5</button>
-      <button class="chip race" onclick="setRace(7)" id="race_7">7</button>
-      <button class="chip race on" onclick="setRace(0)" id="race_0">∞</button>
     </div>
 
     <div style="height:22px"></div>
@@ -606,7 +599,6 @@ function openSetup() {
   renderSlots();
   el('venue_Stix').classList.remove('on');
   el("venue_Charlie's").classList.remove('on');
-  ['3', '5', '7', '0'].forEach(r => el('race_' + r).classList.toggle('on', r === '0'));
   showScreen('setupScreen');
 }
 function renderSlots() {
@@ -641,10 +633,6 @@ function setVenue(v) {
   el('venue_Stix').classList.toggle('on', v === 'Stix');
   el("venue_Charlie's").classList.toggle('on', v === "Charlie's");
 }
-function setRace(n) {
-  setupSel.raceTo = n;
-  ['3', '5', '7', '0'].forEach(r => el('race_' + r).classList.toggle('on', r === String(n)));
-}
 function startMatch() {
   if (!setupSel.p1 || !setupSel.p2) { toast('Pick two players'); return; }
   if (setupSel.p1 === setupSel.p2 && setupSel.p1 !== 'Guest') { toast('Pick two different players'); return; }
@@ -674,8 +662,7 @@ function streakOf(key) {
 }
 function renderMatch() {
   el('mVenue').textContent = '📍 ' + active.venue;
-  const raceTxt = active.raceTo ? 'Race to ' + active.raceTo : 'Free play';
-  el('mMeta').textContent = 'Rack ' + (active.games.length + 1) + ' · ' + raceTxt;
+  el('mMeta').textContent = 'Rack ' + (active.games.length + 1);
   [1, 2].forEach(i => {
     const key = 'p' + i;
     const name = active[key];
@@ -728,11 +715,6 @@ function chooseLoss(lossType) {
   apiPost({ action: 'logPoolGame', venue: active.venue, winner, loser, lossType, matchId: active.matchId })
     .then(res => { if (res && res.timestamp) { game.timestamp = res.timestamp; saveActive(); } })
     .catch(() => {});
-  // race check
-  if (active.raceTo && active.score[side] >= active.raceTo) {
-    popConfetti();
-    setTimeout(endMatch, 650);
-  }
 }
 function undoRack() {
   if (!active.games.length) return;
