@@ -1435,6 +1435,12 @@ async function changeDay(delta) {
 })();
 updateDayNav();
 loadAll().then(() => { if (viewOffset !== 0) changeDay(0); });
+
+// If no profile is saved yet (new device, or iOS cleared storage), prompt
+// "Who's using this?" instead of silently defaulting to AJ.
+if (!localStorage.getItem('grind_user')) {
+  setTimeout(openProfilePicker, 350);
+}
 </script>
 </body>
 </html>
