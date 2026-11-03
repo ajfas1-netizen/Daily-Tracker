@@ -558,6 +558,8 @@
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbzEcwU-CfMajZdxUVN2a823tPG85IOjhTK7_akWmkJ7oGvOM1Jt6RvbI2-RMwykECu_XQ/exec';
+// Whoever is active in the app — so Forge logs land in THEIR log, not AJ's.
+const currentUser = (localStorage.getItem('grind_user') || 'aj').toLowerCase();
 
 let currentMode = 'cook';
 let portions = 4;
@@ -855,6 +857,7 @@ async function logToday(macros, showCard) {
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
       action: 'logFoodDirect',
+      user: currentUser,
       name: macros.name,
       protein: macros.protein,
       calories: macros.calories,
