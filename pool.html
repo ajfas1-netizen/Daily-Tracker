@@ -107,6 +107,28 @@
   }
   .tab.on { color: var(--text); border-color: var(--lime); background: rgba(200,255,0,0.06); }
 
+  /* ---- Period filter ---- */
+  .period-row { display: flex; gap: 6px; margin-bottom: 10px; }
+  .per {
+    flex: 1; padding: 7px 4px; border-radius: 8px; cursor: pointer;
+    background: transparent; border: 1px solid var(--line); color: var(--dim);
+    font-size: 11px; font-weight: 800; letter-spacing: 0.2px;
+  }
+  .per.on { color: var(--text); border-color: var(--chalk); background: rgba(56,189,248,0.08); }
+
+  /* ---- Resume banner ---- */
+  .resume-card {
+    display: flex; align-items: center; gap: 12px; margin: 8px 0 14px; padding: 13px 15px;
+    border-radius: 16px; background: linear-gradient(135deg, rgba(255,212,59,0.14), rgba(255,212,59,0.03));
+    border: 1px solid rgba(255,212,59,0.4);
+  }
+  .resume-info { flex: 1; font-size: 13px; line-height: 1.35; color: var(--text); }
+  .resume-info b { font-size: 15px; }
+  .resume-btns { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .resume-btns button { padding: 8px 14px; border-radius: 9px; font-size: 12px; font-weight: 800; cursor: pointer; border: none; }
+  .rb-resume { background: var(--gold); color: #2a2208; }
+  .rb-discard { background: transparent; border: 1px solid var(--line); color: var(--dim); }
+
   /* ---- Lists / rows ---- */
   .section-title { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: var(--dim); text-transform: uppercase; margin: 18px 2px 10px; }
   .row {
@@ -266,8 +288,15 @@
 
   <!-- ===== HOME ===== -->
   <div class="screen on" id="homeScreen">
+    <div id="resumeSlot"></div>
     <div id="kingSlot"></div>
     <button class="big-btn" onclick="openSetup()">+ NEW MATCH</button>
+    <div class="period-row">
+      <button class="per on" id="per_all" onclick="setPeriod('all')">All-time</button>
+      <button class="per" id="per_month" onclick="setPeriod('month')">30 days</button>
+      <button class="per" id="per_week" onclick="setPeriod('week')">7 days</button>
+      <button class="per" id="per_last" onclick="setPeriod('last')">Last 20</button>
+    </div>
     <div class="tabs">
       <button class="tab on" id="tab_board" onclick="setTab('board')">🏆 Board</button>
       <button class="tab" id="tab_rivals" onclick="setTab('rivals')">⚔️ Rivalries</button>
@@ -385,6 +414,7 @@ const LOSS_LABEL = { clean: 'clean', scratch: 'scratch', scratch8: 'scratch on t
 let GAMES = [];      // full history from backend
 let active = null;   // active match state
 let tab = 'board';
+let period = 'all';  // all | month | week | last
 let pickTarget = 1;
 
 // ---- helpers ----
@@ -421,29 +451,56 @@ async function load() {
     const data = await apiGet('getPoolGames');
     GAMES = Array.isArray(data) ? data : [];
   } catch (e) { GAMES = []; }
-  renderHome();
-  // resume an in-progress match
+  // Load (but do NOT auto-open) any in-progress match — it's offered as a
+  // dismissible Resume banner on the home screen instead.
   try {
     const raw = localStorage.getItem('pool_active');
-    if (raw) { active = JSON.parse(raw); if (active && active.p1 && active.p2) { renderMatch(); showScreen('matchScreen'); } }
-  } catch (e) {}
+    active = raw ? JSON.parse(raw) : null;
+    if (active && !(active.p1 && active.p2)) active = null;
+  } catch (e) { active = null; }
+  renderHome();
+  showScreen('homeScreen');
 }
 
 // ================= STATS =================
-function leaderboard() {
+// Games within the selected period window.
+function periodGames() {
+  if (period === 'last') {
+    return GAMES.slice().sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)).slice(0, 20);
+  }
+  const days = period === 'week' ? 7 : (period === 'month' ? 30 : 0);
+  if (!days) return GAMES;
+  const c = new Date(); c.setHours(0, 0, 0, 0); c.setDate(c.getDate() - (days - 1));
+  const cut = c.getFullYear() + '-' + String(c.getMonth() + 1).padStart(2, '0') + '-' + String(c.getDate()).padStart(2, '0');
+  return GAMES.filter(g => (g.date || '') >= cut);
+}
+function periodLabel() {
+  return period === 'week' ? 'last 7 days' : period === 'month' ? 'last 30 days' : period === 'last' ? 'last 20 games' : 'all-time';
+}
+// Longest consecutive-win streak for a player within a game set.
+function longestStreak(name, games) {
+  const ord = games.slice().sort((a, b) => (a.timestamp < b.timestamp ? -1 : 1));
+  let best = 0, cur = 0;
+  ord.forEach(g => {
+    if (g.winner === name) { cur++; if (cur > best) best = cur; }
+    else if (g.loser === name) { cur = 0; }
+  });
+  return best;
+}
+function leaderboard(games) {
   const m = {};
-  GAMES.forEach(g => {
+  games.forEach(g => {
     if (g.winner) { (m[g.winner] = m[g.winner] || { w: 0, l: 0 }).w++; }
     if (g.loser)  { (m[g.loser]  = m[g.loser]  || { w: 0, l: 0 }).l++; }
   });
   return Object.keys(m).map(n => {
     const o = m[n]; const t = o.w + o.l;
     return { name: n, w: o.w, l: o.l, games: t, pct: t ? o.w / t : 0 };
-  }).sort((a, b) => b.pct - a.pct || b.w - a.w);
+  }).sort((a, b) => b.w - a.w || b.pct - a.pct);
 }
-function rivalries() {
+function rivalries(games) {
   const pairs = {};
-  GAMES.forEach(g => {
+  games.forEach(g => {
     if (!g.winner || !g.loser) return;
     const key = [g.winner, g.loser].sort().join('|');
     const p = pairs[key] = pairs[key] || {};
@@ -455,9 +512,9 @@ function rivalries() {
     return { a, b, aw, bw, total: aw + bw };
   }).sort((x, y) => y.total - x.total);
 }
-function shame() {
+function shame(games) {
   const m = {};
-  GAMES.forEach(g => {
+  games.forEach(g => {
     if (!g.loser) return;
     const o = m[g.loser] = m[g.loser] || { early8: 0, scratch8: 0, scratch: 0 };
     if (g.lossType === 'early8') o.early8++;
@@ -488,24 +545,40 @@ function matches() {
 
 // ================= HOME RENDER =================
 function renderHome() {
-  const lb = leaderboard();
-  const king = lb.find(p => p.games >= 2) || lb[0];
-  if (king) {
+  // Resume banner for an in-progress match
+  const rs = el('resumeSlot');
+  if (active && active.p1 && active.p2) {
+    rs.innerHTML =
+      '<div class="resume-card"><div class="resume-info">⏸ <b>Match in progress</b><br>' +
+      active.p1 + ' vs ' + active.p2 + ' · ' + active.score.p1 + '–' + active.score.p2 + ' @ ' + active.venue +
+      '</div><div class="resume-btns">' +
+      '<button class="rb-resume" onclick="resumeMatch()">Resume</button>' +
+      '<button class="rb-discard" onclick="discardMatch()">Discard</button></div></div>';
+  } else { rs.innerHTML = ''; }
+
+  const view = periodGames();
+  const king = leaderboard(view)[0];
+  if (king && king.games) {
     el('kingSlot').innerHTML =
       '<div class="king">' + ballHTML(king.name, 52) +
-      '<div style="flex:1"><div class="king-label">👑 KING OF THE TABLE</div>' +
+      '<div style="flex:1"><div class="king-label">👑 KING OF THE TABLE · ' + periodLabel().toUpperCase() + '</div>' +
       '<div class="king-name">' + king.name + '</div>' +
       '<div class="king-sub">' + king.w + '–' + king.l + ' · ' + Math.round(king.pct * 100) + '% win rate</div></div>' +
       '<div class="king-crown">👑</div></div>';
   } else {
     el('kingSlot').innerHTML =
       '<div class="king"><div class="king-crown">👑</div><div style="flex:1"><div class="king-label">👑 KING OF THE TABLE</div>' +
-      '<div class="king-name">Up for grabs</div><div class="king-sub">Play a match to claim the crown</div></div></div>';
+      '<div class="king-name">Up for grabs</div><div class="king-sub">No games in the ' + periodLabel() + ' window</div></div></div>';
   }
   renderTab();
   renderRecent();
 }
 
+function setPeriod(p) {
+  period = p;
+  ['all', 'month', 'week', 'last'].forEach(x => el('per_' + x).classList.toggle('on', x === p));
+  renderHome();
+}
 function setTab(t) {
   tab = t;
   ['board', 'rivals', 'shame'].forEach(x => el('tab_' + x).classList.toggle('on', x === t));
@@ -513,20 +586,22 @@ function setTab(t) {
 }
 function renderTab() {
   const c = el('tabContent');
+  const view = periodGames();
   if (tab === 'board') {
-    const lb = leaderboard();
-    if (!lb.length) { c.innerHTML = emptyBox('🎱', 'No games yet.<br>Start a match to build the board.'); return; }
-    c.innerHTML = lb.map((p, i) =>
-      '<div class="row"><div class="row-rank">' + (i === 0 ? '👑' : (i + 1)) + '</div>' +
+    const lb = leaderboard(view);
+    if (!lb.length) { c.innerHTML = emptyBox('🎱', 'No games in the ' + periodLabel() + ' window.'); return; }
+    c.innerHTML = lb.map((p, i) => {
+      const st = longestStreak(p.name, view);
+      return '<div class="row"><div class="row-rank">' + (i === 0 ? '👑' : (i + 1)) + '</div>' +
       ballHTML(p.name, 40) +
       '<div class="row-body"><div class="row-name">' + p.name + '</div>' +
-      '<div class="row-sub">' + p.w + '–' + p.l + ' · ' + p.games + ' games</div>' +
+      '<div class="row-sub">' + p.w + '–' + p.l + ' · ' + p.games + ' games' + (st >= 2 ? ' · 🔥 best ' + st : '') + '</div>' +
       '<div class="pct-bar"><div class="pct-fill" style="width:' + Math.round(p.pct * 100) + '%"></div></div></div>' +
-      '<div class="row-right"><div class="row-big lime">' + Math.round(p.pct * 100) + '%</div></div></div>'
-    ).join('');
+      '<div class="row-right"><div class="row-big lime">' + Math.round(p.pct * 100) + '%</div></div></div>';
+    }).join('');
   } else if (tab === 'rivals') {
-    const rv = rivalries();
-    if (!rv.length) { c.innerHTML = emptyBox('⚔️', 'No rivalries yet.<br>Every grudge starts somewhere.'); return; }
+    const rv = rivalries(view);
+    if (!rv.length) { c.innerHTML = emptyBox('⚔️', 'No rivalries in the ' + periodLabel() + ' window.'); return; }
     c.innerHTML = rv.map(r => {
       const lead = r.aw === r.bw ? 'Dead even — someone break the tie' :
         (r.aw > r.bw ? r.a : r.b) + ' leads the rivalry';
@@ -539,8 +614,8 @@ function renderTab() {
         '</div><div class="rival-tag">' + lead + '</div></div>';
     }).join('');
   } else {
-    const sh = shame();
-    if (!sh.length) { c.innerHTML = emptyBox('😇', 'Nobody has choked yet.<br>Give it time.'); return; }
+    const sh = shame(view);
+    if (!sh.length) { c.innerHTML = emptyBox('😇', 'No chokes in the ' + periodLabel() + ' window.<br>Give it time.'); return; }
     c.innerHTML = sh.map((p, i) => {
       const title = shameTitle(p, i);
       return '<div class="row"><div class="row-rank">' + (i === 0 ? '💀' : (i + 1)) + '</div>' +
@@ -785,10 +860,25 @@ function finishSummary() {
   showScreen('homeScreen');
 }
 
+// ================= resume / discard =================
+function resumeMatch() {
+  if (!active || !active.p1) return;
+  renderMatch();
+  showScreen('matchScreen');
+}
+function discardMatch() {
+  if (!confirm('Discard this in-progress match? Any racks already logged stay counted — this just clears the live session so it stops reopening.')) return;
+  localStorage.removeItem('pool_active');
+  active = null;
+  renderHome();
+}
+
 // ================= misc =================
 function onBack() {
   const cur = document.querySelector('.screen.on').id;
-  if (cur === 'matchScreen') { if (confirm('Leave the match? Your logged racks are saved.')) { showScreen('homeScreen'); } return; }
+  // Leaving the match just returns to the menu — it's still resumable from the
+  // home banner, so we never get stuck auto-reopening it.
+  if (cur === 'matchScreen') { renderHome(); showScreen('homeScreen'); return; }
   if (cur === 'setupScreen' || cur === 'summaryScreen') { showScreen('homeScreen'); return; }
   window.location.href = 'index.html';
 }
