@@ -167,6 +167,9 @@ function doPost(e) {
     case 'deletePoolGame':
       result = deletePoolGame(body);
       break;
+    case 'deletePoolMatch':
+      result = deletePoolMatch(body);
+      break;
     case 'setupPoolSheet':
       result = setupPoolSheet();
       break;
@@ -1600,6 +1603,20 @@ function getPoolGames() {
     });
   }
   return out;
+}
+
+// Delete every row of a given matchId (used to re-seed a block of history).
+function deletePoolMatch(body) {
+  const sheet = getSheet('PoolGames');
+  if (!sheet) return { error: 'PoolGames not found' };
+  const mid = body.matchId;
+  if (!mid) return { error: 'matchId required' };
+  const data = sheet.getDataRange().getValues();
+  let removed = 0;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][6]) === mid) { sheet.deleteRow(i + 1); removed++; }
+  }
+  return { success: true, removed };
 }
 
 function deletePoolGame(body) {
