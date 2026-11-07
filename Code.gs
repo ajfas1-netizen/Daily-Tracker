@@ -92,6 +92,9 @@ function doGet(e) {
     case 'getPoolGames':
       result = getPoolGames();
       break;
+    case 'getHits':
+      result = getHits(user);
+      break;
     default:
       result = { error: 'Unknown action: ' + action };
   }
@@ -169,6 +172,15 @@ function doPost(e) {
       break;
     case 'deletePoolMatch':
       result = deletePoolMatch(body);
+      break;
+    case 'logHit':
+      result = logHit(body, user);
+      break;
+    case 'deleteHit':
+      result = deleteHit(body);
+      break;
+    case 'setupHitsSheet':
+      result = setupHitsSheet();
       break;
     case 'setupPoolSheet':
       result = setupPoolSheet();
@@ -1622,6 +1634,56 @@ function deletePoolMatch(body) {
 function deletePoolGame(body) {
   const sheet = getSheet('PoolGames');
   if (!sheet) return { error: 'PoolGames not found' };
+  const ts = body.timestamp;
+  if (!ts) return { error: 'timestamp required' };
+  const data = sheet.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    const rowTs = data[i][0] instanceof Date ? data[i][0].toISOString() : String(data[i][0]);
+    if (rowTs === ts) { sheet.deleteRow(i + 1); return { success: true }; }
+  }
+  return { error: 'not found' };
+}
+
+// ============================================================
+//  HITS TRACKER ("Slow Burn") — flower hits, per user (AJ & Nick)
+//  Sheet: Hits | timestamp | date | user
+// ============================================================
+function setupHitsSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  if (!ss.getSheetByName('Hits')) {
+    ss.insertSheet('Hits').appendRow(['timestamp', 'date', 'user']);
+    return { success: true, message: 'Hits sheet created. 🌿' };
+  }
+  return { success: true, message: 'Hits already exists.' };
+}
+function logHit(body, user) {
+  user = (user || body.user || 'aj').toLowerCase();
+  const sheet = getSheet('Hits');
+  if (!sheet) return { error: 'Hits sheet not found. Run setupHitsSheet() first.' };
+  const { date, timestamp } = resolveLogDate(body.date);
+  sheet.appendRow([timestamp, date, user]);
+  return { success: true, timestamp, date };
+}
+function getHits(user) {
+  user = (user || 'aj').toLowerCase();
+  const sheet = getSheet('Hits');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  const out = [];
+  for (let i = 1; i < data.length; i++) {
+    const r = data[i];
+    if (!r[0]) continue;
+    if (String(r[2]).toLowerCase() !== user) continue;
+    out.push({
+      timestamp: r[0] instanceof Date ? r[0].toISOString() : String(r[0]),
+      date:      r[1] instanceof Date ? Utilities.formatDate(r[1], TZ, 'yyyy-MM-dd') : String(r[1])
+    });
+  }
+  return out;
+}
+function deleteHit(body) {
+  const sheet = getSheet('Hits');
+  if (!sheet) return { error: 'Hits not found' };
   const ts = body.timestamp;
   if (!ts) return { error: 'timestamp required' };
   const data = sheet.getDataRange().getValues();

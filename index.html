@@ -328,6 +328,40 @@
   .pl-title { font-size: 16px; font-weight: 900; letter-spacing: 1px; }
   .pl-sub { font-size: 11px; color: #7fa693; font-weight: 600; margin-top: 2px; }
   .pl-arrow { font-size: 20px; color: #c8ff00; font-weight: 900; }
+  /* ---- Slow Burn (hits) card ---- */
+  .weed-card {
+    margin: 16px 0 4px; padding: 16px; border-radius: 16px;
+    background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(16,185,129,0.03));
+    border: 1px solid rgba(34,197,94,0.3);
+  }
+  .weed-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .weed-title { font-size: 13px; font-weight: 900; letter-spacing: 1.5px; color: #4ade80; }
+  .weed-cap {
+    background: none; border: 1px solid var(--border); color: var(--dim);
+    font-size: 10px; font-weight: 800; letter-spacing: 0.3px; border-radius: 999px; padding: 4px 11px; cursor: pointer;
+  }
+  .weed-cap.over { color: var(--orange); border-color: rgba(245,158,11,0.5); }
+  .weed-main { text-align: center; margin: 2px 0; }
+  .weed-count { font-size: 54px; font-weight: 900; line-height: 1; color: #4ade80; }
+  .weed-count.over { color: var(--orange); }
+  .weed-count-label { font-size: 11px; color: var(--dim); font-weight: 700; letter-spacing: 1px; margin-top: 2px; }
+  .weed-compare { text-align: center; font-size: 12px; color: var(--dim); margin: 8px 0 2px; }
+  .weed-compare .down { color: #4ade80; font-weight: 800; }
+  .weed-compare .up { color: var(--orange); font-weight: 800; }
+  .weed-bars { display: flex; align-items: flex-end; gap: 5px; height: 48px; margin: 16px 2px 20px; }
+  .weed-bar { flex: 1; background: rgba(74,222,128,0.25); border-radius: 3px 3px 0 0; min-height: 3px; position: relative; }
+  .weed-bar.today { background: #4ade80; }
+  .weed-bar-lbl { position: absolute; bottom: -15px; left: 0; right: 0; text-align: center; font-size: 8px; color: var(--dim); }
+  .weed-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .weed-undo {
+    flex: 0 0 auto; padding: 14px 18px; border-radius: 12px; background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border); color: var(--dim); font-size: 13px; font-weight: 800; cursor: pointer;
+  }
+  .weed-plus {
+    flex: 1; padding: 14px; border-radius: 12px; border: none; cursor: pointer;
+    background: linear-gradient(135deg, #22c55e, #16a34a); color: #04210f; font-size: 16px; font-weight: 900;
+  }
+  .weed-plus:active, .weed-undo:active { transform: scale(0.98); }
   .tap-btn {
     background: var(--card2); border: 1px solid var(--border); border-radius: 14px; padding: 17px 10px;
     font-size: 15px; font-weight: 700; cursor: pointer; color: var(--text);
@@ -742,6 +776,24 @@
 </div>
 
 
+<!-- Slow Burn (hits) — AJ & Nick only -->
+<div class="weed-card" id="weedCard" style="display:none">
+  <div class="weed-head">
+    <span class="weed-title">🌿 SLOW BURN</span>
+    <button class="weed-cap" id="weedCapBtn" onclick="setWeedCap()">Set cap</button>
+  </div>
+  <div class="weed-main">
+    <div class="weed-count" id="weedCount">0</div>
+    <div class="weed-count-label">hits today</div>
+  </div>
+  <div class="weed-compare" id="weedCompare"></div>
+  <div class="weed-bars" id="weedBars"></div>
+  <div class="weed-actions">
+    <button class="weed-undo" onclick="undoHit()">↩ Undo</button>
+    <button class="weed-plus" onclick="logHit()">+1 Hit 🌿</button>
+  </div>
+</div>
+
 <!-- Pool launcher -->
 <button class="pool-launch" onclick="openPool()">
   <span class="pl-ball">🎱</span>
@@ -837,6 +889,10 @@ function closeProfilePicker() { document.getElementById('userPickerOverlay').cla
     const lem = document.getElementById('surfsideLemBtn');
     if (lem) lem.style.display = '';
   }
+  // Slow Burn hits card — AJ & Nick only
+  if (currentUser === 'aj' || currentUser === 'nick') {
+    document.getElementById('weedCard').style.display = 'block';
+  }
   const active = document.getElementById('pick_' + currentUser);
   if (active) active.classList.add('active');
 })();
@@ -910,11 +966,92 @@ async function loadAll() {
       renderStreaks(data.recentHistory);
       renderWeeklySummary(data.recentHistory);
     }
+    if (currentUser === 'aj' || currentUser === 'nick') loadHits();
     document.getElementById('statusBanner').className = 'status-banner';
   } catch (err) {
     showStatus('Failed to connect. Check your internet.', 'error');
     console.error(err);
   }
+}
+
+// ---- Slow Burn (hits) ----
+let HITS = [];
+async function loadHits() {
+  try { const d = await apiGet('getHits'); HITS = Array.isArray(d) ? d : []; }
+  catch (e) { HITS = []; }
+  renderWeed();
+}
+function weedCap() {
+  const v = localStorage.getItem('grind_weed_cap_' + currentUser);
+  return v ? parseInt(v) : 0;
+}
+function renderWeed() {
+  const by = {};
+  HITS.forEach(h => { by[h.date] = (by[h.date] || 0) + 1; });
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const today = by[todayStr] || 0;
+  const cap = weedCap();
+
+  const cEl = document.getElementById('weedCount');
+  cEl.textContent = today;
+  cEl.className = 'weed-count' + (cap && today > cap ? ' over' : '');
+  const capBtn = document.getElementById('weedCapBtn');
+  capBtn.textContent = cap ? ('cap ' + cap) : 'Set cap';
+  capBtn.className = 'weed-cap' + (cap && today > cap ? ' over' : '');
+
+  // last 7 days bars
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const s = d.toLocaleDateString('en-CA');
+    days.push({ s, n: by[s] || 0, lbl: d.toLocaleDateString('en-US', { weekday: 'narrow' }) });
+  }
+  const max = Math.max(1, ...days.map(d => d.n));
+  document.getElementById('weedBars').innerHTML = days.map(d =>
+    '<div class="weed-bar' + (d.s === todayStr ? ' today' : '') + '" style="height:' +
+    Math.round(d.n / max * 100) + '%" title="' + d.n + ' hits">' +
+    '<span class="weed-bar-lbl">' + d.lbl + '</span></div>'
+  ).join('');
+
+  // comparison vs prior 7-day average
+  const prior = [];
+  for (let i = 7; i >= 1; i--) { const d = new Date(); d.setDate(d.getDate() - i); prior.push(by[d.toLocaleDateString('en-CA')] || 0); }
+  const avg = prior.reduce((a, b) => a + b, 0) / 7;
+  const yStr = (function () { const d = new Date(); d.setDate(d.getDate() - 1); return d.toLocaleDateString('en-CA'); })();
+  let cmp = 'Yesterday ' + (by[yStr] || 0) + ' · 7-day avg ' + avg.toFixed(1);
+  if (avg > 0 && today < avg) cmp += ' · <span class="down">⬇ slowing down</span>';
+  else if (avg > 0 && today > avg) cmp += ' · <span class="up">⬆ above avg</span>';
+  document.getElementById('weedCompare').innerHTML = cmp;
+}
+async function logHit() {
+  const ts = 'pending_' + Date.now();
+  HITS.push({ timestamp: ts, date: new Date().toLocaleDateString('en-CA') });
+  renderWeed();
+  try {
+    const r = await apiPost({ action: 'logHit' });
+    if (r && r.timestamp) { const h = HITS.find(x => x.timestamp === ts); if (h) h.timestamp = r.timestamp; }
+  } catch (e) { showStatus('Failed to log hit', 'error'); }
+}
+async function undoHit() {
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  for (let i = HITS.length - 1; i >= 0; i--) {
+    if (HITS[i].date === todayStr) {
+      const h = HITS.splice(i, 1)[0];
+      renderWeed();
+      if (h.timestamp && !String(h.timestamp).startsWith('pending')) {
+        apiPost({ action: 'deleteHit', timestamp: h.timestamp }).catch(() => {});
+      }
+      return;
+    }
+  }
+}
+function setWeedCap() {
+  const cur = weedCap();
+  const v = prompt('Daily hit cap (0 = no cap):', cur || '');
+  if (v === null) return;
+  const n = parseInt(v) || 0;
+  try { localStorage.setItem('grind_weed_cap_' + currentUser, n); } catch (e) {}
+  renderWeed();
 }
 
 // ---- Streaks ----
