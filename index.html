@@ -348,10 +348,9 @@
   .weed-compare { text-align: center; font-size: 12px; color: var(--dim); margin: 8px 0 2px; }
   .weed-compare .down { color: #4ade80; font-weight: 800; }
   .weed-compare .up { color: var(--orange); font-weight: 800; }
-  .weed-bars { display: flex; align-items: flex-end; gap: 5px; height: 48px; margin: 16px 2px 20px; }
-  .weed-bar { flex: 1; background: rgba(74,222,128,0.25); border-radius: 3px 3px 0 0; min-height: 3px; position: relative; }
-  .weed-bar.today { background: #4ade80; }
-  .weed-bar-lbl { position: absolute; bottom: -15px; left: 0; right: 0; text-align: center; font-size: 8px; color: var(--dim); }
+  .weed-bars { margin: 14px 2px 4px; }
+  .weed-bars svg { width: 100%; height: auto; display: block; }
+  .weed-legend { text-align: center; font-size: 10px; font-weight: 800; letter-spacing: 0.3px; margin: 2px 0 10px; }
   .weed-actions { display: flex; gap: 8px; margin-top: 12px; }
   .weed-undo {
     flex: 0 0 auto; padding: 14px 18px; border-radius: 12px; background: rgba(255,255,255,0.04);
@@ -788,6 +787,7 @@
   </div>
   <div class="weed-compare" id="weedCompare"></div>
   <div class="weed-bars" id="weedBars"></div>
+  <div class="weed-legend" id="weedLegend"></div>
   <div class="weed-actions">
     <button class="weed-undo" onclick="undoHit()">↩ Undo</button>
     <button class="weed-plus" onclick="logHit()">+1 Hit 🌿</button>
@@ -976,9 +976,14 @@ async function loadAll() {
 
 // ---- Slow Burn (hits) ----
 let HITS = [];
+let HITS_OTHER = [];
+const OTHER_USER = currentUser === 'nick' ? 'aj' : 'nick';
+const OTHER_NAME = nameOf(OTHER_USER);
 async function loadHits() {
   try { const d = await apiGet('getHits'); HITS = Array.isArray(d) ? d : []; }
   catch (e) { HITS = []; }
+  try { const r = await fetch(API + '?action=getHits&user=' + OTHER_USER); const d2 = await r.json(); HITS_OTHER = Array.isArray(d2) ? d2 : []; }
+  catch (e) { HITS_OTHER = []; }
   renderWeed();
 }
 function weedCap() {
@@ -986,10 +991,11 @@ function weedCap() {
   return v ? parseInt(v) : 0;
 }
 function renderWeed() {
-  const by = {};
-  HITS.forEach(h => { by[h.date] = (by[h.date] || 0) + 1; });
+  const by = {};  HITS.forEach(h => { by[h.date] = (by[h.date] || 0) + 1; });
+  const byO = {}; HITS_OTHER.forEach(h => { byO[h.date] = (byO[h.date] || 0) + 1; });
   const todayStr = new Date().toLocaleDateString('en-CA');
   const today = by[todayStr] || 0;
+  const otherToday = byO[todayStr] || 0;
   const cap = weedCap();
 
   const cEl = document.getElementById('weedCount');
@@ -999,26 +1005,41 @@ function renderWeed() {
   capBtn.textContent = cap ? ('cap ' + cap) : 'Set cap';
   capBtn.className = 'weed-cap' + (cap && today > cap ? ' over' : '');
 
-  // last 7 days bars
+  // last 7 days: your bars + their line
   const days = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const s = d.toLocaleDateString('en-CA');
-    days.push({ s, n: by[s] || 0, lbl: d.toLocaleDateString('en-US', { weekday: 'narrow' }) });
+    days.push({ s, you: by[s] || 0, them: byO[s] || 0, lbl: d.toLocaleDateString('en-US', { weekday: 'narrow' }) });
   }
-  const max = Math.max(1, ...days.map(d => d.n));
-  document.getElementById('weedBars').innerHTML = days.map(d =>
-    '<div class="weed-bar' + (d.s === todayStr ? ' today' : '') + '" style="height:' +
-    Math.round(d.n / max * 100) + '%" title="' + d.n + ' hits">' +
-    '<span class="weed-bar-lbl">' + d.lbl + '</span></div>'
-  ).join('');
+  const max = Math.max(1, ...days.map(d => Math.max(d.you, d.them)));
+  const W = 320, chartH = 72, slotW = (W - 20) / 7;
+  const YOU = '#4ade80', THEM = '#60a5fa';
+  let bars = '', line = '', dots = '', labels = '';
+  days.forEach((d, i) => {
+    const cx = 10 + slotW * i + slotW / 2;
+    const bw = slotW * 0.5;
+    const bh = d.you / max * chartH;
+    bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + (chartH - bh).toFixed(1) + '" width="' + bw.toFixed(1) +
+            '" height="' + Math.max(bh, 1).toFixed(1) + '" rx="2" fill="' + (d.s === todayStr ? YOU : 'rgba(74,222,128,0.32)') + '"/>';
+    const ly = (chartH - d.them / max * chartH).toFixed(1);
+    line += (i === 0 ? 'M' : 'L') + cx.toFixed(1) + ' ' + ly + ' ';
+    dots += '<circle cx="' + cx.toFixed(1) + '" cy="' + ly + '" r="3" fill="' + THEM + '"/>';
+    labels += '<text x="' + cx.toFixed(1) + '" y="' + (chartH + 12) + '" text-anchor="middle" font-size="8" fill="#7a808e" font-family="sans-serif">' + d.lbl + '</text>';
+  });
+  document.getElementById('weedBars').innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + (chartH + 16) + '" xmlns="http://www.w3.org/2000/svg">' +
+    bars + '<path d="' + line + '" fill="none" stroke="' + THEM + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+    dots + labels + '</svg>';
+  document.getElementById('weedLegend').innerHTML =
+    '<span style="color:' + YOU + '">▮ You</span>&nbsp;&nbsp;&nbsp;<span style="color:' + THEM + '">— ' + OTHER_NAME + '</span>';
 
-  // comparison vs prior 7-day average
+  // today head-to-head + your trend vs your own 7-day average
   const prior = [];
   for (let i = 7; i >= 1; i--) { const d = new Date(); d.setDate(d.getDate() - i); prior.push(by[d.toLocaleDateString('en-CA')] || 0); }
   const avg = prior.reduce((a, b) => a + b, 0) / 7;
-  const yStr = (function () { const d = new Date(); d.setDate(d.getDate() - 1); return d.toLocaleDateString('en-CA'); })();
-  let cmp = 'Yesterday ' + (by[yStr] || 0) + ' · 7-day avg ' + avg.toFixed(1);
+  let cmp = '<span style="color:' + YOU + ';font-weight:800">You ' + today + '</span> · ' +
+            '<span style="color:' + THEM + ';font-weight:800">' + OTHER_NAME + ' ' + otherToday + '</span> today';
   if (avg > 0 && today < avg) cmp += ' · <span class="down">⬇ slowing down</span>';
   else if (avg > 0 && today > avg) cmp += ' · <span class="up">⬆ above avg</span>';
   document.getElementById('weedCompare').innerHTML = cmp;
