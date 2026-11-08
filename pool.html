@@ -324,6 +324,7 @@
     <div class="chip-grid">
       <button class="chip venue" id="venue_Stix" onclick="setVenue('Stix')">🍺 Stix</button>
       <button class="chip venue" id="venue_Charlie's" onclick="setVenue(&quot;Charlie's&quot;)">🥃 Charlie's</button>
+      <button class="chip venue" id="venue_Harper's" onclick="setVenue(&quot;Harper's&quot;)">🍸 Harper's</button>
     </div>
 
     <div style="height:22px"></div>
@@ -672,8 +673,7 @@ let setupSel = { p1: null, p2: null, venue: null, raceTo: 0 };
 function openSetup() {
   setupSel = { p1: null, p2: null, venue: null, raceTo: 0 };
   renderSlots();
-  el('venue_Stix').classList.remove('on');
-  el("venue_Charlie's").classList.remove('on');
+  document.querySelectorAll('.chip.venue').forEach(b => b.classList.remove('on'));
   showScreen('setupScreen');
 }
 function renderSlots() {
@@ -705,8 +705,7 @@ function choosePlayer(name) {
 }
 function setVenue(v) {
   setupSel.venue = v;
-  el('venue_Stix').classList.toggle('on', v === 'Stix');
-  el("venue_Charlie's").classList.toggle('on', v === "Charlie's");
+  document.querySelectorAll('.chip.venue').forEach(b => b.classList.toggle('on', b.id === 'venue_' + v));
 }
 function startMatch() {
   if (!setupSel.p1 || !setupSel.p2) { toast('Pick two players'); return; }
